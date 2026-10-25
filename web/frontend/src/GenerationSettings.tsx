@@ -1,11 +1,12 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
+import { BulkOutputSettings } from './BulkOutputSettings'
 import { Help } from './Help'
 import { generationErrors, seedValid, type GenerationErrors } from './generation-validation'
 import { generationHelp, selectionRule, moduleHelp, type HelpKey, type ModuleDescription } from './generation-help'
 import { translate, type Language, type TextKey } from './i18n'
 
 export type Generation = {
-  executionMode?: 'standard' | 'bulk'; syntheticConsent?: boolean; patientsPerRun?: number;
+  bulkGzip?: boolean; executionMode?: 'standard' | 'bulk'; syntheticConsent?: boolean; patientsPerRun?: number;
   outputMode: 'kds' | 'synthea'; population: number; minAge: number; maxAge: number; gender: string;
   timestampSeeds?: boolean; patientSeed: string; clinicianSeed: string; singlePersonSeed: string;
   referenceDate: string; endDate: string; state: string; city: string;
@@ -14,7 +15,7 @@ export type Generation = {
   modules: string[]; keepModule: string; timestepDays: number; maxAttempts: number; veteranPopulation: boolean
 }
 type Catalogue = { bulkOutputDirectory: string; revision: string; defaults: Generation; locations: Record<string, string[]>; modules: ModuleDescription[]; keepModules: ModuleDescription[] }
-export function GenerationSettings({ language, onChange, initialValue, onExecutionModeChange, children, seriesControls, continuationLocked = false, sourceOffset = 0 }: { sourceOffset?: number; seriesControls?: ReactNode; continuationLocked?: boolean; children?: ReactNode; onExecutionModeChange: (mode: 'standard' | 'bulk') => void; language: Language; onChange: (value: Generation | null) => void; initialValue?: Generation }) {
+export function GenerationSettings({ bulkGzip, onBulkGzipChange, language, onChange, initialValue, onExecutionModeChange, children, seriesControls, continuationLocked = false, sourceOffset = 0 }: { bulkGzip: boolean; onBulkGzipChange: (value: boolean) => void; sourceOffset?: number; seriesControls?: ReactNode; continuationLocked?: boolean; children?: ReactNode; onExecutionModeChange: (mode: 'standard' | 'bulk') => void; language: Language; onChange: (value: Generation | null) => void; initialValue?: Generation }) {
   const fieldId = useId()
   const t = (key: TextKey) => translate(language, key)
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
@@ -40,18 +41,19 @@ export function GenerationSettings({ language, onChange, initialValue, onExecuti
       setCatalogue(next)
       let saved = next.defaults
       try { const stored = JSON.parse(localStorage.getItem('syntheaGeneration') ?? 'null'); if (stored && Object.entries(next.defaults).every(([key, initial]) => stored[key] === undefined || (Array.isArray(initial) ? Array.isArray(stored[key]) && stored[key].every((item: unknown) => typeof item === 'string') : typeof stored[key] === typeof initial))) saved = { ...next.defaults, ...stored } } catch { /* Use the pinned defaults. */ }
+      onBulkGzipChange((initialValue ?? saved).bulkGzip ?? true)
       setValue(initialValue ? { ...next.defaults, ...initialValue, timestampSeeds: false } : { ...saved, timestampSeeds: saved.timestampSeeds === true })
     }).catch(() => { if (active) setFailed(true) })
     return () => { active = false; onChange(null) }
-  }, [onChange, initialValue])
+  }, [onChange, initialValue, onBulkGzipChange])
   const errors: GenerationErrors = value && catalogue
     ? generationErrors(value, catalogue.locations, new Date().toLocaleDateString('sv-SE')) : {}
   const valid = value !== null && catalogue !== null && Object.keys(errors).length === 0 &&
     (value.executionMode !== 'bulk' || memory?.ready === true)
   useEffect(() => {
-    if (value && Object.values(value).every(item => typeof item !== 'number' || Number.isFinite(item))) { try { localStorage.setItem('syntheaGeneration', JSON.stringify(value)) } catch { /* Submission still works. */ } }
-    onChange(valid ? value : null)
-  }, [value, valid, onChange])
+    if (value && Object.values(value).every(item => typeof item !== 'number' || Number.isFinite(item))) { try { localStorage.setItem('syntheaGeneration', JSON.stringify({ ...value, bulkGzip })) } catch { /* Submission still works. */ } }
+    onChange(valid && value ? { ...value, bulkGzip } : null)
+  }, [value, valid, onChange, bulkGzip])
   if (failed) return <p role="alert" className="mt-4 text-red-700">{t('app.generation.loadFailed')}</p>
   if (!value || !catalogue) return <p className="mt-4 text-sm">{t('app.generation.loading')}</p>
   const update = <K extends keyof Generation>(key: K, next: Generation[K]) => setValue(old => old && ({ ...old, [key]: next }))
@@ -80,7 +82,7 @@ export function GenerationSettings({ language, onChange, initialValue, onExecuti
     {value.executionMode === 'bulk' ? <div className="mt-3 rounded-xl bg-teal-50 p-4 text-sm">
       <p className={`font-medium ${memory === null ? 'text-slate-600' : memory.ready ? 'text-teal-800' : 'text-red-700'}`} role="status">{t(memory === null ? 'app.bulk.memoryChecking' : memory.ready ? 'app.bulk.memoryReady' : 'app.bulk.memoryBlocked').replace('{available}', memory?.availableBytes == null ? '—' : (memory.availableBytes / 1024 ** 3).toFixed(1))}</p>
       <p className="mt-2">{t('app.bulk.directory')}: <code className="break-all">{catalogue.bulkOutputDirectory}</code></p>
-      <p className="mt-3">{t('app.bulk.format')}</p>
+      {value.outputMode === 'synthea' ? <BulkOutputSettings language={language} gzip={bulkGzip} onChange={onBulkGzipChange} disabled={continuationLocked}/> : <p className="mt-3">{t(bulkGzip ? 'app.bulk.format' : 'app.bulk.formatPlain')}</p>}
       <details className="mt-3 text-slate-600" open={memory !== null && !memory.ready || undefined}>
         <summary className="cursor-pointer">{t('app.bulk.memoryHelp')}</summary>
         <p className="mt-2">{t('app.bulk.prepare')}</p>

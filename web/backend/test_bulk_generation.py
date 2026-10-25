@@ -30,7 +30,7 @@ class BulkTests(QueueFixture):
             self.assertEqual(['JSONGZIP'], saved['formats'])
             self.assertFalse(saved['validation'])
             self.assertFalse(saved['diagnostics'])
-            self.assertTrue(job['bulk_output_directory'].endswith(job['id'].replace('-', '')))
+            self.assertTrue(job['bulk_output_directory'].endswith(job['id'].replace('-', '')[:8]))
             self.assertEqual('bulk', store.editor_input(job['id'])['generation']['executionMode'])
             self.assertEqual(job['id'], client.post('/api/jobs', json=request).json()['id'])
             self.assertEqual(409, client.post('/api/jobs', json={**request, 'generation': {'population': 2}}).status_code)

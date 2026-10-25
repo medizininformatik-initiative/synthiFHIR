@@ -75,6 +75,43 @@ class NativeBulkTests(unittest.TestCase):
             self.assertEqual([100, 1], [item['inspection']['patients'] for item in published])
             self.assertEqual(101, json.loads((folder / 'bulk-progress.json').read_text())['completed'])
 
+    def test_package_boundary_follows_snapshot_and_subrun_size(self):
+        for layout, population, per_run, expected in (
+                (3, 2001, 2000, [1000, 1000, 1]),
+                (4, 2001, 2000, [2000, 1]),
+                (4, 10001, 10000, [10000, 1]),
+                (5, 201, 200, [200, 1])):
+            with self.subTest(layout=layout, per_run=per_run), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                folder = root / 'job'
+                folder.mkdir()
+                settings = generation.Settings(executionMode='bulk', outputMode='synthea',
+                    population=population, patientsPerRun=per_run, patientSeed='1000').model_dump(mode='json')
+                (folder / 'snapshot.json').write_text(json.dumps({'generation': settings,
+                    'bulkLayoutVersion': layout, 'bulkOutputName': 'native'}))
+                seeds = []
+                def process(command, log, update=None):
+                    seed = command[command.index('-s') + 1]
+                    size = int(command[command.index('-p') + 1])
+                    seeds.append(seed)
+                    target = log.parent / 'synthea/fhir'
+                    target.mkdir(parents=True)
+                    for i in range(size):
+                        (target / f'p{i}.json').write_text(json.dumps({
+                            'resourceType': 'Bundle', 'entry': [{'resource': {
+                                'resourceType': 'Patient', 'id': f'p{seed}-{i}'}}]}))
+                with patch.object(bulk, 'OUTPUT_ROOT', root / 'output'), patch.object(
+                        bulk, 'checked_process', side_effect=process), redirect_stdout(io.StringIO()):
+                    bulk.run(folder)
+                    paths = sorted((root / 'output/native').glob('*.ndjson.gz' if layout >= 5 else '*.zip'))
+                    saved = [(p.read_bytes(), p.stat().st_mtime_ns) for p in paths]
+                    bulk.run(folder)
+                    self.assertEqual(saved, [(p.read_bytes(), p.stat().st_mtime_ns) for p in paths])
+                self.assertEqual([str(1000 + i) for i in range((population + 99) // 100)], seeds)
+                self.assertEqual(expected, [bulk_archives.patient_count(bulk_archives.read_manifest(p)) for p in paths])
+                self.assertEqual(population, sum(len(bulk_archives.read_manifest(p)['files']) for p in paths))
+                self.assertFalse(list((root / 'output').rglob('*.json.gz')))
+
     def test_native_compression_rejects_missing_patients(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

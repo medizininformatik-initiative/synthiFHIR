@@ -16,6 +16,7 @@ import synthea_runtime
 class Settings(BaseModel):
     model_config = ConfigDict(extra='forbid')
     executionMode: Literal['standard', 'bulk'] = 'standard'
+    bulkGzip: bool = Field(default=True, strict=True)
     outputMode: Literal['kds', 'synthea'] = 'kds'
     syntheticConsent: bool = True
     population: int = Field(default=1, ge=1, le=100000, strict=True)

@@ -12,6 +12,7 @@ import urllib.request
 import zipfile
 
 import bulk_archives
+import bulk_ndjson
 import datasets
 import store
 
@@ -29,6 +30,13 @@ def source(item):
 def bundles(item, root, run, log, cancelled):
     path = source(item)
     if item.get('kind') == 'bulk':
+        if path.name.endswith(bulk_ndjson.SUFFIXES):
+            with bulk_ndjson.open_stream(path) as stream:
+                for line in stream:
+                    if cancelled():
+                        raise InterruptedError()
+                    yield json.loads(line, parse_float=Decimal)
+            return
         manifest = bulk_archives.read_manifest(path, verify=False)
         with zipfile.ZipFile(path) as archive:
             for name in sorted(manifest['files']):
