@@ -28,9 +28,9 @@ planned work streams; this checklist does not change their status.
 
 - [ ] Regenerate all 10,000 patients in one sequential bulk run after the
   enrichment and packaging checks. Preserve the existing 3,000-patient output.
-- [x] Group the internal 100-patient chunks into 1,000-patient ZIP output packages
+- [x] Group the internal 100-patient chunks into one NDJSON Gzip output file per subrun
   and show package progress within the single run; remove verified loose duplicates.
-- [x] Load bulk ZIP packages into Blaze/HAPI with bounded memory, progress and resume.
+- [x] Load bulk packages into Blaze/HAPI with bounded memory, progress and resume.
 - [x] Disable additional patient copies and per-copy time shifts in bulk mode;
   retain patient ID settings and the common clinical time shift.
 - [x] Explain internal seed increments next to the start seed and display the
@@ -42,7 +42,7 @@ planned work streams; this checklist does not change their status.
 - [x] Show phase progress, generated size and adaptive time/size estimates in place.
 
 - [x] Keep additional identifier counters unique across bulk chunks and subruns,
-  including cancellation/resumption; verify committed ZIPs remain unchanged in CI.
+  including cancellation/resumption; verify published packages remain unchanged in CI.
 - [x] Show actual patient counts in ZIP names, whole-percent progress, the current
   subrun and a compact copy action for the local output path.
 

@@ -202,9 +202,11 @@ def prepare_job(prepared, source, profile, configuration_properties=None, *, inp
             snapshot['syntheaRevision'] = generation.catalogue()['revision']
             snapshot['generation'] = json.loads((directory / filename).read_text())
     import bulk_generation
-    snapshot['resultOutputName'] = bulk_generation.output_directory_name(job_id, dataset_name or 'Datensatz', time.time())
+    snapshot['resultOutputName'] = bulk_generation.output_directory_name(
+        job_id, dataset_name or 'Datensatz', time.time(),
+        specification['population'] if bulk else None, continuation)
     if bulk:
-        snapshot['bulkLayoutVersion'] = 3
+        snapshot['bulkLayoutVersion'] = 5
         if not specification.get('singlePersonSeed'):
             snapshot['bulkSourceVersion'] = 1
         snapshot['identifierCounterStarts'] = counter_starts
@@ -421,6 +423,9 @@ def delete(job_id):
                 if any(item['jobId'] == job_id for item in json.loads(upload['descriptor'])['datasets']):
                     raise SubmissionConflict('An active upload still uses this run')
             folder = ROOT / 'jobs' / job_id
+            if (folder / 'snapshot.json').exists():
+                import result_exports
+                result_exports.remove(json.loads((folder / 'snapshot.json').read_text()))
             if folder.exists():
                 shutil.rmtree(folder)
             db.execute('DELETE FROM jobs WHERE id=?', (job_id,))

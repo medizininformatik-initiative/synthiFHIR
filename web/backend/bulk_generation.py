@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 import bulk_archives
+import bulk_ndjson
 from bulk_identifiers import Registry
 
 import bulk_plan
@@ -36,12 +37,18 @@ def output_directory_label(name):
     return paths.join(OUTPUT_LABEL, name)
 
 
-def output_directory_name(job_id, dataset_name, timestamp):
+def output_directory_name(job_id, dataset_name, timestamp, population=None, continuation=None):
     """Portable single path component, bounded in length and unique per job."""
     text = (dataset_name or 'Massendaten').replace('ß', 'ss')
     text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode()
     label = re.sub(r'[^A-Za-z0-9_-]+', '-', text).strip('-_')[-24:].strip('-_') or 'Massendaten'
     stamp = datetime.fromtimestamp(timestamp, ZoneInfo('Europe/Berlin')).strftime('%Y%m%d-%H%M%S')
+    if population is not None:
+        continuation = continuation or {}
+        series_id = uuid.UUID(continuation.get('seriesRoot', job_id)).hex[:8]
+        number = result_exports.series_number({'continuation': continuation})
+        suffix = f'({number})' if number > 1 else ''
+        return f'{stamp}_{label}_{population}Pat_{series_id}{suffix}'
     return f'{stamp}_{label}_{uuid.UUID(job_id).hex}'
 
 
@@ -195,7 +202,7 @@ def _run(folder, registry):
     checkpoint_root = folder / 'bulk-checkpoints'
     identity = store.digest(folder / 'snapshot.json') + ('' if native else store.digest(folder / 'default.config'))
     state = {'completed': 0, 'total': total, 'chunk': 0, 'run': 1, 'runs': len(runs),
-             'finishedRuns': 0, 'archiveFormat': 'zip', 'phase': 'starting', 'stageCompleted': 0, 'stageTotal': 0}
+             'finishedRuns': 0, 'archiveFormat': bulk_ndjson.suffix(snapshot).lstrip('.'), 'phase': 'starting', 'stageCompleted': 0, 'stageTotal': 0}
     current_started = time.monotonic()
     pending = None
 
@@ -217,6 +224,8 @@ def _run(folder, registry):
     # Recover only atomically published chunks belonging to this immutable snapshot.
     for run_info in runs:
         run_number = run_info['number']
+        # Preserve the package boundaries recorded by older immutable snapshots.
+        package_size = run_info['total'] if snapshot.get('bulkLayoutVersion', 0) >= 4 else bulk_plan.PACKAGE_SIZE
         staging_root = folder / 'bulk-staging' if snapshot.get('resultOutputName') else destination
         run_directory = staging_root / f'run-{run_number:05d}' if grouped else staging_root
         run_directory.mkdir(parents=True, exist_ok=True)
@@ -224,7 +233,7 @@ def _run(folder, registry):
         print(f'Subrun {run_number}/{len(runs)}: {run_info["total"]} patients', flush=True)
         part_names = []
         packed_chunks = {}
-        for archive in sorted(bulk_archives.package_directory(snapshot).glob(f'run-{run_number:05d}-package-*.zip')):
+        for archive in bulk_archives.package_files(snapshot, f'run-{run_number:05d}-package-'):
             saved_manifest = bulk_archives.read_manifest(archive)
             packed_chunks.update(saved_manifest['chunks'])
         for local_index, start in enumerate(range(run_info['start'], run_info['start'] + run_info['total'], CHUNK_SIZE)):
@@ -366,12 +375,13 @@ def _run(folder, registry):
                 print(f'Completed {completed}/{total} patients', flush=True)
             current_started = time.monotonic()
             update(chunk=index + 1, phase='between-chunks', stageCompleted=size, stageTotal=size)
-            if grouped and (len(part_names) * CHUNK_SIZE >= bulk_plan.PACKAGE_SIZE or completed == run_info['start'] + run_info['total']):
-                package_number = local_index * CHUNK_SIZE // bulk_plan.PACKAGE_SIZE + 1
-                target = bulk_archives.package_directory(snapshot) / f'run-{run_number:05d}-package-{package_number:05d}.zip'
+            if grouped and (len(part_names) * CHUNK_SIZE >= package_size or completed == run_info['start'] + run_info['total']):
+                package_number = local_index * CHUNK_SIZE // package_size + 1
+                suffix = bulk_ndjson.suffix(snapshot)
+                target = bulk_archives.package_directory(snapshot) / f'run-{run_number:05d}-package-{package_number:05d}{suffix}'
                 legacy_tar = target.with_suffix('.tar')
                 target = bulk_archives.package_path(run_directory, part_names, target)
-                package_patients = min(len(part_names) * CHUNK_SIZE, run_info['total'] - (package_number - 1) * bulk_plan.PACKAGE_SIZE)
+                package_patients = min(len(part_names) * CHUNK_SIZE, run_info['total'] - (package_number - 1) * package_size)
                 update(phase='packaging', stageCompleted=0, stageTotal=0)
                 archive_bytes += package(run_directory, part_names, target,
                                          lambda done, count: update(stageCompleted=done, stageTotal=count),

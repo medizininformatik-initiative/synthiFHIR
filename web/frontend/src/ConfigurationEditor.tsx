@@ -1,3 +1,4 @@
+import { BulkOutputSettings } from './BulkOutputSettings'
 import identifierBindings from '../../catalog/options/identifier-bindings.json'
 import { SavedConfigurations } from './SavedConfigurations'
 import { exportPropertiesConfiguration } from './configuration-properties'
@@ -246,7 +247,7 @@ function RulePreview({ rule, t }: { rule: Rule; t: Translator }) {
     </div>
   )
 }
-export function ConfigurationEditor({ language, onChange, initialConfiguration, bulkMode = false, readOnly = false }: { readOnly?: boolean; bulkMode?: boolean; language: Language; onChange?: (config: Configuration) => void; initialConfiguration?: Configuration }) {
+export function ConfigurationEditor({ language, onChange, initialConfiguration, bulkGzip = true, onBulkGzipChange, bulkMode = false, readOnly = false }: { bulkGzip?: boolean; onBulkGzipChange?: (value: boolean) => void; readOnly?: boolean; bulkMode?: boolean; language: Language; onChange?: (config: Configuration) => void; initialConfiguration?: Configuration }) {
   const t: Translator = (key, params) =>
     translate(language, key as TextKey, params)
   const [initial] = useState(() => {
@@ -474,7 +475,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
         <header className="mb-6">
           <h3 className="mb-3 text-lg font-semibold">{t(`section.${tab}`)}</h3>
           <p className="max-w-3xl text-sm text-slate-600">
-            {t(({ resources: 'app.config.resourcesIntro', identifiers: 'identifier.help', dar: 'app.config.darHint', ids: 'app.config.idsIntro', terminology: 'app.config.terminologyIntro', output: 'app.config.outputIntro' } as Record<string, string>)[tab])}
+            {t(tab === 'output' && bulkMode ? 'app.bulk.outputIntro' : ({ resources: 'app.config.resourcesIntro', identifiers: 'identifier.help', dar: 'app.config.darHint', ids: 'app.config.idsIntro', terminology: 'app.config.terminologyIntro', output: 'app.config.outputIntro' } as Record<string, string>)[tab])}
           </p>
         </header>
         {tab === 'resources' && (
@@ -605,8 +606,9 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 {t('app.config.baseline', contract.profileBaseline)}
               </p>
             )}
+            {tab === 'output' && bulkMode && <BulkOutputSettings language={language} gzip={bulkGzip} onChange={value => onBulkGzipChange?.(value)} disabled={readOnly}/>}
             {options
-              .filter((o) => o.section === tab)
+              .filter((o) => o.section === tab && !(tab === 'output' && bulkMode))
               .map((o) => (
                 <OptionControl
                   key={o.id}

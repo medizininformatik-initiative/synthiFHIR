@@ -46,7 +46,7 @@ class DatasetTests(QueueFixture):
         self.assertEqual('COMPLETE', response.json()['status'])
         self.assertEqual(2, len(self.client.get('/api/datasets').json()))
 
-    def test_host_exports_contain_only_dataset_zips_and_survive_run_deletion(self):
+    def test_host_exports_contain_only_dataset_zips_and_are_removed_with_run(self):
         self.build()
         store.finish(self.job, 'succeeded', 0)
         snapshot = json.loads((self.folder / 'snapshot.json').read_text())
@@ -58,7 +58,7 @@ class DatasetTests(QueueFixture):
             self.assertEqual((self.folder / f'dataset-{index}.zip').read_bytes(), file.read_bytes())
         self.assertEqual(result_exports.label(snapshot), store.get(self.job)['output_directory'])
         store.delete(self.job)
-        self.assertTrue(all(file.is_file() for file in files))
+        self.assertFalse(destination.exists())
 
     def test_downloads_require_terminal_jobs_and_manifest_membership(self):
         manifest = self.build()

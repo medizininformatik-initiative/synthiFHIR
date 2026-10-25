@@ -60,8 +60,31 @@ def dataset_name(snapshot):
     return presentation(snapshot).get('datasetName', snapshot.get('datasetName', ''))
 
 
+def series_number(snapshot):
+    """Keep the series position stable, including when earlier runs are deleted."""
+    import store
+    cached = presentation(snapshot).get('seriesNumber')
+    if cached is not None:
+        return cached
+    number = 1
+    seen = set()
+    while continuation := snapshot.get('continuation'):
+        if 'seriesNumber' in continuation:
+            return number - 1 + continuation['seriesNumber']
+        parent = continuation['sourceRun']
+        if parent in seen:
+            raise ValueError('Invalid series chain')
+        seen.add(parent)
+        snapshot = json.loads((store.ROOT / 'jobs' / parent / 'snapshot.json').read_text())
+        number += 1
+        cached = presentation(snapshot).get('seriesNumber')
+        if cached is not None:
+            return number - 1 + cached
+    return number
+
+
 def rename_bulk(job_id, name):
-    """Rename published results without changing any generation evidence or ZIP bytes."""
+    """Rename published results without changing any generation evidence or package bytes."""
     import bulk_archives
     import bulk_generation
     import bulk_resources
@@ -78,7 +101,10 @@ def rename_bulk(job_id, name):
         if snapshot.get('generation', {}).get('executionMode') != 'bulk' or not snapshot.get('resultOutputName'):
             raise ValueError('This run has no published bulk results')
         source = path(snapshot)
-        target = ROOT / bulk_generation.output_directory_name(job_id, name, job['created'])
+        number = series_number(snapshot)
+        continuation = {**snapshot.get('continuation', {}), 'seriesNumber': number}
+        target = ROOT / bulk_generation.output_directory_name(
+            job_id, name, job['created'], snapshot['generation']['population'], continuation)
         if source != target and target.exists():
             raise ValueError('The destination already exists')
         manifest_path = folder / 'datasets.json'
@@ -95,6 +121,9 @@ def rename_bulk(job_id, name):
                 if new.exists():
                     raise ValueError('A package with that name already exists')
                 moves.append((old, new))
+                if old.name.endswith(('.ndjson.gz', '.ndjson')):
+                    from bulk_ndjson import manifest_path as package_manifest
+                    moves.append((package_manifest(old), package_manifest(new)))
                 item['path'] = old.name
         if packages.exists() and set(packages.iterdir()) != {old for old, _ in moves}:
             raise ValueError('Unexpected files in the package directory')
@@ -108,7 +137,7 @@ def rename_bulk(job_id, name):
             if source != target:
                 source.rename(target); renamed = True
             bulk_generation.atomic_json(manifest_path, manifest)
-            bulk_generation.atomic_json(metadata, {'datasetName': name, 'resultOutputName': target.name})
+            bulk_generation.atomic_json(metadata, {'datasetName': name, 'resultOutputName': target.name, 'seriesNumber': number})
         except BaseException:
             if renamed:
                 target.rename(source)
@@ -119,3 +148,19 @@ def rename_bulk(job_id, name):
         if (target / 'packages').exists():
             (target / 'packages').rmdir()
         return store.get(job_id)
+
+
+def remove(snapshot):
+    """Remove the run's exported directory and its saved location override."""
+    if not snapshot.get('resultOutputName') and not snapshot.get('bulkOutputName'):
+        return
+    import bulk_archives
+    destination = path(snapshot) if snapshot.get('resultOutputName') else bulk_archives.output_path(snapshot)
+    if destination.parent.resolve() != ROOT.resolve() or destination.name in {'.', '..'}:
+        raise ValueError('Invalid result directory')
+    if destination.is_symlink():
+        destination.unlink()
+    elif destination.exists():
+        shutil.rmtree(destination)
+    if snapshot.get('resultOutputName'):
+        metadata_path(snapshot).unlink(missing_ok=True)

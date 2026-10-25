@@ -354,8 +354,11 @@ def dataset_download(dataset_id: str):
         if count is None:
             count = archive_names.patient_count(path)
         if item.get('kind') == 'bulk':
-            stem = re.sub(r'-\d+Pat$', '', path.stem)
-            name = f'{stem}-{count}Pat.zip'
+            if path.name.endswith(('.ndjson.gz', '.ndjson')):
+                name = path.name
+            else:
+                stem = re.sub(r'-\d+Pat$', '', path.stem)
+                name = f'{stem}-{count}Pat.zip'
         else:
             name = archive_names.filename(job.get('dataset_name'), count, dataset_id)
         return FileResponse(path, filename=name)
