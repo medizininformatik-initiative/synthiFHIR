@@ -76,3 +76,47 @@ class NdjsonTests(unittest.TestCase):
                 with ndjson.open_stream(target, 'rb') as stream:
                     contents.append(stream.read())
             self.assertEqual(contents[0], contents[1])
+
+    def test_statistics_count_while_writing_and_recover_after_report_failure(self):
+        import package_statistics as stats
+        resources = [
+            {'resourceType': 'Patient', 'id': 'p1'},
+            {'resourceType': 'Encounter', 'class': {'system': 'classes', 'code': 'IMP'},
+             'type': [{'coding': [{'system': 'http://fhir.de/CodeSystem/Kontaktebene', 'code': 'einrichtungskontakt'}]}]},
+            {'resourceType': 'Encounter', 'class': {'system': 'classes', 'code': 'IMP'},
+             'partOf': {'reference': 'Encounter/parent'},
+             'type': [{'coding': [{'system': 'http://fhir.de/CodeSystem/Kontaktebene', 'code': 'abteilungskontakt'}]}]},
+            {'resourceType': 'Encounter', 'class': {'system': 'classes', 'code': 'AMB'}},
+            {'resourceType': 'Observation', 'contained': [{'resourceType': 'Specimen'}]},
+            {'resourceType': 'Encounter'}]
+        raw = json.dumps({'resourceType': 'Bundle', 'type': 'transaction',
+                          'entry': [{'resource': r} for r in resources]}).encode()
+        for suffix in ndjson.SUFFIXES:
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp); part = root / 'part-00001'; part.mkdir()
+                (part / 'p001.json.gz').write_bytes(gzip.compress(raw))
+                (part / 'support-001.json.gz').write_bytes(gzip.compress(b'{"resourceType":"Bundle","type":"collection","entry":[{"resource":{"resourceType":"Organization","id":"o1"}}]}'))
+                target = root / ('patients' + suffix)
+                with patch.object(stats, 'write', side_effect=OSError('report interrupted')):
+                    with self.assertRaisesRegex(OSError, 'report interrupted'):
+                        ndjson.package(root, [part.name], target, lambda *_: None)
+                self.assertTrue(target.exists())
+                self.assertTrue(part.exists())
+                saved = target.read_bytes(), target.stat().st_mtime_ns
+                with patch.object(ndjson, 'line', side_effect=AssertionError('Must not parse bundles again')):
+                    ndjson.package(root, [part.name], target, lambda *_: None)
+                self.assertEqual(saved, (target.read_bytes(), target.stat().st_mtime_ns))
+                self.assertFalse(part.exists())
+                report = stats.report_path(target)
+                text = report.read_text()
+                self.assertIn('Total resources: 7', text)
+                self.assertIn('Transaction bundles: 2', text)
+                self.assertIn('IMP (inpatient; classes): 2 / 1 / 1', text)
+                self.assertIn('AMB (ambulatory; classes): 1 / 1 / 0', text)
+                self.assertIn('Department contact | IMP (classes) | Sub-encounter: 1', text)
+                self.assertNotIn('Specimen:', text)
+                self.assertNotIn('abteilungskontakt', text)
+                report.unlink()
+                with patch.object(ndjson, 'line', side_effect=AssertionError('Must not parse bundles again')):
+                    ndjson.package(root, [part.name], target, lambda *_: None)
+                self.assertEqual(text, report.read_text())

@@ -196,12 +196,19 @@ def run(mode, compressed=True):
                     loose_name = 'bulk-staging/' + archive.name.split('-package-')[0] + '/' + name
                     if loose_name in loose:
                         assert metadata['sha256'] == loose[loose_name][0]
+                from collections import Counter
+                import package_statistics
+                counted_resources = Counter()
+                report = package_statistics.report_path(archive).read_text()
+                assert f'Package: {archive.name}' in report
+                assert f'Patient resources: {expected_count:,}' in report
                 count = 0
                 with bulk_ndjson.open_stream(archive) as stream:
                     for line in stream:
                         bundle = json.loads(line)
                         assert bundle['type'] == 'transaction'
                         resources = [e['resource'] for e in bundle['entry']]
+                        counted_resources.update(r['resourceType'] for r in resources)
                         patients = [r for r in resources if r['resourceType'] == 'Patient']
                         assert len(patients) == 1
                         patient_ids.append(patients[0]['id'])
@@ -211,6 +218,8 @@ def run(mode, compressed=True):
                                 if identifier.get('system') in values:
                                     values[identifier['system']].append(identifier['value'])
                 assert count == expected_count and archive.name.endswith(f'-{expected_count}Pat' + suffix)
+                assert manifest['statistics']['resources'] == dict(counted_resources)
+                assert manifest['statistics']['bundles'] == count
                 assert len(manifest['chunks']) == expected_count // 100
                 checkpoint = manifest['chunks'][max(manifest['chunks'])]
                 assert checkpoint['size'] == 100

@@ -9,6 +9,7 @@ import shutil
 import time
 
 import store
+import package_statistics
 
 SUFFIX = '.ndjson.gz'
 SUFFIXES = ('.ndjson.gz', '.ndjson')
@@ -37,7 +38,7 @@ def read_manifest(path, verify=True, update=None):
     return manifest
 
 
-def line(raw):
+def line(raw, statistics=None):
     bundle = json.loads(raw, parse_float=Decimal)
     if bundle.get('resourceType') != 'Bundle':
         raise ValueError('Expected a FHIR Bundle')
@@ -53,6 +54,8 @@ def line(raw):
         raw = encode(bundle).encode('utf-8')
     else:
         raw = TOKENS.sub(lambda match: match[0] if match[0].startswith(b'"') else b'', raw)
+    if statistics is not None:
+        statistics.add(bundle)
     return raw + b'\n', ids
 
 
@@ -80,6 +83,7 @@ def package(directory, parts, destination, update, chunks=None):
         manifest = {'version': 2, 'chunks': chunks or {part: {} for part in parts}, 'files': {}}
         count = sum(len(list((directory / part).glob('*.json.gz'))) for part in parts)
         written = 0
+        statistics = package_statistics.Statistics()
         last_update = time.monotonic()
         with pending.open('wb') as stream:
             sink = DigestWriter(stream)
@@ -91,7 +95,7 @@ def package(directory, parts, destination, update, chunks=None):
                         raise ValueError('Cannot package an empty patient chunk')
                     for source in sources:
                         compressed = source.read_bytes()
-                        data, ids = line(gzip.decompress(compressed))
+                        data, ids = line(gzip.decompress(compressed), statistics)
                         entry = {'size': len(compressed), 'sha256': hashlib.sha256(compressed).hexdigest(), 'patientIds': ids}
                         if source.name.startswith('support-'):
                             entry['role'] = 'support'
@@ -101,11 +105,13 @@ def package(directory, parts, destination, update, chunks=None):
                         if written == count or time.monotonic() - last_update >= 2:
                             update(written, count)
                             last_update = time.monotonic()
-            manifest.update(size=stream.tell(), sha256=sink.digest.hexdigest())
+            manifest.update(size=stream.tell(), sha256=sink.digest.hexdigest(), statistics=statistics.snapshot())
         # Metadata first; only the payload rename publishes a complete package.
         from bulk_generation import atomic_json
         atomic_json(manifest_path(destination), manifest)
         pending.replace(destination)
+    if 'statistics' in manifest:
+        package_statistics.write(destination, manifest['statistics'])
     # After a crash during cleanup, verify remaining chunks before removing them.
     for part in parts:
         directory_part = directory / part
