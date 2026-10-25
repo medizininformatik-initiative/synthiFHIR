@@ -4,7 +4,6 @@
 
 - The GitHub repository is `medizininformatik-initiative/synthifhir`.
 - The main integration branch for current work is `develop`.
-- Use `codex/` as the branch prefix for Codex-created branches.
 - Prefer small, reviewable pull requests.
 - Ship a ready-to-run workbook in `input/`. When maintaining the template, update its bundled starter copy there as well.
 - Write user documentation in English and describe current behavior directly. Use “KDS variants”, keep examples focused on essential parameters, and link to shared explanations instead of repeating them.
