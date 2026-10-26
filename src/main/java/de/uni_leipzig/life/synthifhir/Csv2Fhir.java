@@ -637,8 +637,8 @@ public class Csv2Fhir {
         for (var pending : pendingOutput) sourceTables.put(pending.getValue().fhirType() + "/"
                 + pending.getValue().getIdElement().getIdPart(), pending.getKey());
         MedicationTransformations transformations = new MedicationTransformations(result);
-        if (identifiers.enabled()) identifiers.reserve(transformations.potentialResources(potentialResources), result, options.loopCounter);
-        List<Resource> transformed = transformations.apply(potentialResources);
+        if (identifiers.enabled()) identifiers.reserve(SupportResourceIdentity.medications(transformations.potentialResources(potentialResources), result), result, options.loopCounter);
+        List<Resource> transformed = SupportResourceIdentity.medications(transformations.apply(potentialResources), result);
         pendingOutput = transformed.stream().map(resource -> Map.entry(sourceTables.getOrDefault(
                 resource.fhirType() + "/" + resource.getIdElement().getIdPart(), TableIdentifier.Medikation), resource))
                 .collect(java.util.stream.Collectors.toList());

@@ -85,7 +85,7 @@ export function IdentifierPatternControl({
               end: e.currentTarget.selectionEnd ?? value.length
             }
           }}
-          className="h-10 w-full min-w-0 rounded-lg border border-slate-300 p-2 font-mono"
+          className="h-[var(--control-height)] w-full min-w-0 rounded-lg border border-slate-300 p-2 font-mono"
         />
       </div>
       <div className="mt-2 flex flex-wrap items-start gap-3">
