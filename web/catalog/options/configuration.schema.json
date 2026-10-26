@@ -97,7 +97,7 @@
         },
         "resource.Location.identity": {
           "title": "Reuse a location or create a new one",
-          "description": "Reuse: The same place always uses the same Location with the same ID, across patients and runs. Facility, department and parent locations are included: Bed 1 in Room 101 is a different place from Bed 1 in Room 102. Create new: Each encounter gets its own locations with their own IDs.",
+          "description": "Reuse: The same place always uses the same Location with the same ID, across patients and runs. Facility, department and parent locations are included: Bed 1 in Room 101 is a different place from Bed 1 in Room 102. Create new: A separate FHIR object is created for each place used in an encounter, even when that place is used in other encounters. This can produce a very large number of Location objects.",
           "default": "shared",
           "enum": [
             "shared",
@@ -164,7 +164,7 @@
         },
         "resource.Medication.identity": {
           "title": "Reuse a medication or create a new one",
-          "description": "Reuse: Matching product details use the same Medication with the same ID. Create new: Each request, administration or statement gets its own Medication with its own ID. Requests, administrations and statements remain separate entries.",
+          "description": "Reuse: Matching product details use the same Medication with the same ID. Create new: A separate FHIR object for the medication is created for each request, administration or statement, even when the product details match. This can produce a very large number of Medication objects. Requests, administrations and statements remain separate entries.",
           "default": "shared",
           "enum": [
             "shared",
@@ -673,7 +673,7 @@
         },
         "resource.Organization.identity": {
           "title": "Reuse an organization or create a new one",
-          "description": "Reuse: The same ward in the same facility and department always uses the same Organization with the same ID, across patients and runs. Create new: Each encounter gets its own Organization with its own ID.",
+          "description": "Reuse: The same ward in the same facility and department always uses the same Organization with the same ID, across patients and runs. Create new: A separate FHIR object is created for each encounter, even when the same organization is used again. This can produce a very large number of Organization objects.",
           "default": "shared",
           "enum": [
             "shared",
