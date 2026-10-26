@@ -427,7 +427,16 @@
         "shared": "choice.identity.shared",
         "separate": "choice.identity.separate"
       },
-      "propertyName": "LOCATION_IDENTITY"
+      "propertyName": "LOCATION_IDENTITY",
+      "enabledWhen": [
+        {
+          "option": "resource.Location.mode",
+          "oneOf": [
+            "generate-reference",
+            "reference-only"
+          ]
+        }
+      ]
     },
     {
       "id": "resource.Location.existingReference",
@@ -2256,7 +2265,17 @@
         "shared": "choice.identity.shared",
         "separate": "choice.identity.separate"
       },
-      "propertyName": "ORGANIZATION_IDENTITY"
+      "propertyName": "ORGANIZATION_IDENTITY",
+      "enabledWhen": [
+        {
+          "option": "resource.Encounter.stationServiceProvider",
+          "oneOf": [
+            "generate-reference",
+            "reference-only",
+            "contained"
+          ]
+        }
+      ]
     },
     {
       "id": "resource.Encounter.stationLocation",
@@ -2271,6 +2290,13 @@
         {
           "option": "resource.Encounter.enabled",
           "equals": true
+        },
+        {
+          "option": "resource.Location.mode",
+          "oneOf": [
+            "generate-reference",
+            "reference-only"
+          ]
         }
       ],
       "fhirPath": "Encounter.location"

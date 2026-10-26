@@ -291,7 +291,9 @@ public final class ContractConfiguration {
     private boolean dependencies(JsonNode dependencies, Set<String> visiting) {
         for (JsonNode dependency : dependencies) {
             String id = dependency.get("option").asText();
-            if (!equalValue(values.get(id), dependency.get("equals")) || !enabled(id, visiting)) return false;
+            boolean matches = dependency.has("oneOf") ? contains(dependency.get("oneOf"), values.get(id))
+                    : equalValue(values.get(id), dependency.get("equals"));
+            if (!matches || !enabled(id, visiting)) return false;
         }
         return true;
     }

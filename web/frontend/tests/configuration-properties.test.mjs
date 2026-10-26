@@ -166,3 +166,19 @@ test('support identities default to shared and roundtrip independently', () => {
     assert.deepEqual(importConfiguration(exported(config)), config)
   }
 })
+
+
+test('inactive support selections roundtrip with readable alternative prerequisites', () => {
+  const config = defaults()
+  config.values['resource.Location.mode'] = 'neither'
+  config.values['resource.Location.identity'] = 'separate'
+  config.values['resource.Encounter.stationLocation'] = false
+  config.values['resource.Encounter.stationServiceProvider'] = 'none'
+  config.values['resource.Organization.identity'] = 'separate'
+  const text = exported(config)
+  assert.match(text, /^# LOCATION_IDENTITY = separate$/m)
+  assert.match(text, /^# ENCOUNTER_STATION_LOCATION = false$/m)
+  assert.match(text, /^# ORGANIZATION_IDENTITY = separate$/m)
+  assert.doesNotMatch(text, /undefined/)
+  assert.deepEqual(importConfiguration(text), config)
+})

@@ -494,3 +494,12 @@ these are repeated deliveries of one logical resource. Every package can thus be
 uploaded independently. Explicit reference-only resource settings continue to
 require the referenced resources on the target server. Concurrent synthetic stays
 may reference the same shared bed.
+
+
+In the resource editor, Organization and Location settings appear as subsections
+of Contact (Encounter). The Location subsection groups its output mode, identity
+policy, reference details and ward selection. Selecting `neither` disables the
+Location-dependent controls while preserving their stored values. The ward
+selection remains available for both generated and reference-only Locations.
+Organization identity is available when a ward organization is generated,
+referenced or contained and Encounter output is enabled.
