@@ -1,4 +1,5 @@
 @import "tailwindcss";
+:root { --control-height: 1.875rem; }
 body { margin: 0; background: #f5f7f8; color: #172b37; font-family: ui-sans-serif, system-ui, sans-serif; }
 button, select { cursor: pointer; }
 
@@ -7,10 +8,10 @@ input:not([type]),
 input:is([type="text"], [type="number"], [type="date"], [type="email"], [type="url"], [type="search"], [type="password"], [type="tel"], [type="time"], [type="datetime-local"]),
 select:not([multiple]):not([size]) {
   box-sizing: border-box;
-  height: 2.5rem;
-  min-height: 2.5rem;
+  height: var(--control-height);
+  min-height: var(--control-height);
   min-width: 0;
-  padding: 0.5rem 0.75rem;
+  padding: 0.25rem 0.75rem;
   font-size: 0.875rem;
   line-height: 1.25rem;
 }
