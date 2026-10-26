@@ -333,6 +333,7 @@ public final class ContractConfiguration {
                     "terminology.versionOutput", "checks.fhirValidation", "output.formats", "output.patientsPerFile").contains(id)
                     && !ClinicalTimeShift.supports(id)
                     && !ClinicalEncounterAssignment.supports(id)
+                    && !SupportResourceIdentity.supports(id)
                     && !ResourceOutputPolicy.supports(id)
                     && !ObservationOutputPolicy.supports(id)
                     && !MedicationTransformations.supports(id)

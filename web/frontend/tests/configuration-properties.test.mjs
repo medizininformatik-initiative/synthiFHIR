@@ -155,3 +155,14 @@ test('case identifiers roundtrip with scope and restricted pattern tokens', () =
     assert.throws(() => importConfiguration(JSON.stringify(invalid)))
   }
 })
+
+test('support identities default to shared and roundtrip independently', () => {
+  for (let mask = 0; mask < 8; mask++) {
+    const config = defaults()
+    ;['Organization', 'Location', 'Medication'].forEach((type, index) => {
+      assert.equal(config.values[`resource.${type}.identity`], 'shared')
+      config.values[`resource.${type}.identity`] = mask & (1 << index) ? 'separate' : 'shared'
+    })
+    assert.deepEqual(importConfiguration(exported(config)), config)
+  }
+})

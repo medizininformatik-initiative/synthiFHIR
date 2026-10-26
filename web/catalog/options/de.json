@@ -824,5 +824,13 @@
   "app.bulk.gzip": "Mit gzip komprimieren",
   "app.bulk.formatPlain": "Ausgabe: Eine .ndjson-Datei pro Teillauf mit der eingestellten Patientenzahl. Ein vollständiges FHIR-Transaktions-Bundle pro Zeile.",
   "app.bulk.checksDisabled": "Eingabediagnose und FHIR-Validierung sind im Massenmodus ausgeschaltet.",
-  "app.bulk.outputIntro": "Im Massenmodus enthält jeder Teillauf eine NDJSON-Datei. Wähle, ob sie mit gzip komprimiert werden soll. Die Patientenzahl je Teillauf legst du oben bei der Generierung fest."
+  "app.bulk.outputIntro": "Im Massenmodus enthält jeder Teillauf eine NDJSON-Datei. Wähle, ob sie mit gzip komprimiert werden soll. Die Patientenzahl je Teillauf legst du oben bei der Generierung fest.",
+  "choice.identity.shared": "Identitäten gemeinsam verwenden",
+  "choice.identity.separate": "Separate Instanzen erzeugen",
+  "option.Organization.identity.label": "Organization-Identität",
+  "option.Organization.identity.help": "Verwendet gemeinsame Identitäten anhand von Einrichtung, Fachabteilung und vollständiger Ortshierarchie oder erzeugt separate Instanzen je Encounter. PID_PREFIX und PID_SUFFIX bestimmen die Einrichtung unabhängig von Patienten-IDs und Läufen. Jedes Patienten-Bundle enthält seine benötigten Ressourcen.",
+  "option.Location.identity.label": "Location-Identität",
+  "option.Location.identity.help": "Verwendet gemeinsame Identitäten anhand von Einrichtung, Fachabteilung und vollständiger Ortshierarchie oder erzeugt separate Instanzen je Encounter. PID_PREFIX und PID_SUFFIX bestimmen die Einrichtung unabhängig von Patienten-IDs und Läufen. Jedes Patienten-Bundle enthält seine benötigten Ressourcen.",
+  "option.Medication.identity.label": "Medication-Identität",
+  "option.Medication.identity.help": "Verwendet gleiche Produktdefinitionen über Patienten und Läufe hinweg oder erzeugt eine eigene Medication je klinischem Ereignis. Verordnungen, Verabreichungen und Statements bleiben eigene Ereignisse. Jedes Patienten-Bundle enthält seine benötigten Produkte."
 }

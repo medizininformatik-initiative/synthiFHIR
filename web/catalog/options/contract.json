@@ -411,6 +411,25 @@
       "propertyName": "LOCATION_MODE"
     },
     {
+      "id": "resource.Location.identity",
+      "section": "resources",
+      "type": "enum",
+      "default": "shared",
+      "status": "agreed",
+      "control": "radio",
+      "choices": [
+        "shared",
+        "separate"
+      ],
+      "labelKey": "option.Location.identity.label",
+      "helpKey": "option.Location.identity.help",
+      "choiceLabelKeys": {
+        "shared": "choice.identity.shared",
+        "separate": "choice.identity.separate"
+      },
+      "propertyName": "LOCATION_IDENTITY"
+    },
+    {
       "id": "resource.Location.existingReference",
       "section": "resources",
       "type": "boolean",
@@ -546,6 +565,25 @@
         "neither": "choice.neither"
       },
       "propertyName": "MEDICATION_MODE"
+    },
+    {
+      "id": "resource.Medication.identity",
+      "section": "resources",
+      "type": "enum",
+      "default": "shared",
+      "status": "agreed",
+      "control": "radio",
+      "choices": [
+        "shared",
+        "separate"
+      ],
+      "labelKey": "option.Medication.identity.label",
+      "helpKey": "option.Medication.identity.help",
+      "choiceLabelKeys": {
+        "shared": "choice.identity.shared",
+        "separate": "choice.identity.separate"
+      },
+      "propertyName": "MEDICATION_IDENTITY"
     },
     {
       "id": "resource.Medication.existingReference",
@@ -2200,6 +2238,25 @@
         }
       ],
       "fhirPath": "Encounter.serviceProvider"
+    },
+    {
+      "id": "resource.Organization.identity",
+      "section": "resources",
+      "type": "enum",
+      "default": "shared",
+      "status": "agreed",
+      "control": "radio",
+      "choices": [
+        "shared",
+        "separate"
+      ],
+      "labelKey": "option.Organization.identity.label",
+      "helpKey": "option.Organization.identity.help",
+      "choiceLabelKeys": {
+        "shared": "choice.identity.shared",
+        "separate": "choice.identity.separate"
+      },
+      "propertyName": "ORGANIZATION_IDENTITY"
     },
     {
       "id": "resource.Encounter.stationLocation",

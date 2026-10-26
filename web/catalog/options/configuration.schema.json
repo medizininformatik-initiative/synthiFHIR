@@ -95,6 +95,15 @@
             "neither"
           ]
         },
+        "resource.Location.identity": {
+          "title": "Location identity",
+          "description": "Shares identities using facility, department and the complete place hierarchy, or creates separate instances per Encounter. PID_PREFIX and PID_SUFFIX define the facility scope independently of patient IDs and runs. Each patient bundle includes its required resources.",
+          "default": "shared",
+          "enum": [
+            "shared",
+            "separate"
+          ]
+        },
         "resource.Location.existingReference": {
           "title": "Include resource reference",
           "description": "Set reference in Encounter.location.location. The referenced Location is omitted from the output and must exist in the target system under the same ID. The converter does not check its existence.",
@@ -151,6 +160,15 @@
             "generate-reference",
             "reference-only",
             "neither"
+          ]
+        },
+        "resource.Medication.identity": {
+          "title": "Medication identity",
+          "description": "Shares identical product definitions across patients and runs, or creates a separate Medication for each clinical event. Requests, administrations and statements remain separate events. Each patient bundle includes its required products.",
+          "default": "shared",
+          "enum": [
+            "shared",
+            "separate"
           ]
         },
         "resource.Medication.existingReference": {
@@ -651,6 +669,15 @@
             "generate-reference",
             "reference-only",
             "contained"
+          ]
+        },
+        "resource.Organization.identity": {
+          "title": "Organization identity",
+          "description": "Shares identities using facility, department and the complete place hierarchy, or creates separate instances per Encounter. PID_PREFIX and PID_SUFFIX define the facility scope independently of patient IDs and runs. Each patient bundle includes its required resources.",
+          "default": "shared",
+          "enum": [
+            "shared",
+            "separate"
           ]
         },
         "resource.Encounter.stationLocation": {

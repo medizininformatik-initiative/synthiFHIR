@@ -65,3 +65,18 @@ def patient_owner(resource, patient_ids, source):
             candidates = [max(candidates, key=len)]
     assert len(candidates) == 1, 'Cannot attribute output resource: ' + identifier
     return candidates[0]
+
+
+def identity_key(*parts):
+    return ''.join(str(len(str(p or '').encode('utf-16-le')) // 2) + ':' + str(p or '') for p in parts)
+
+
+def place_id(kind, path, encounter, options):
+    facility = identity_key(options.get('PID_PREFIX', ''), options.get('PID_SUFFIX', ''))
+    scope = encounter if options.get(kind.upper() + '_IDENTITY', 'shared') == 'separate' else ''
+    return named_id(kind, identity_key(facility, kind, path, scope))
+
+
+def event_product_id(product, event, options):
+    if options.get('MEDICATION_IDENTITY', 'shared') != 'separate': return product
+    return named_id('Medication', identity_key('Medication/' + product, event['resourceType'] + '/' + event['id']))

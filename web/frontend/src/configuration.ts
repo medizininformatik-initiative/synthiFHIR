@@ -359,7 +359,7 @@ export function resourceOptions(id: string): Option[] {
       o.section === 'resources' &&
       ((o.id.startsWith(`resource.${id}.`) && (id !== 'Encounter' || !/^resource\.Encounter\.(ambulatory|inpatient)\./.test(o.id))) ||
         o.id.startsWith(`reference.${id}.`) ||
-        (id === 'Encounter' && o.id.startsWith('contact.')) ||
+        (id === 'Encounter' && (o.id.startsWith('contact.') || o.id === 'resource.Organization.identity')) ||
         (id === 'MedicationRequest' &&
           o.id === 'medication.requestTreatment') ||
         o.id.startsWith(`medication.${id}.`))

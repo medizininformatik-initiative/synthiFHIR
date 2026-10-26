@@ -344,3 +344,9 @@ test('organization navigation follows the encounter provider setting', () => {
     config.values['resource.Encounter.enabled'] = true
   }
 })
+
+test('all support identity controls are reachable in the resource editor', () => {
+  assert.ok(resourceOptions('Encounter').some(o => o.id === 'resource.Organization.identity'))
+  for (const type of ['Location', 'Medication'])
+    assert.ok(resourceOptions(type).some(o => o.id === `resource.${type}.identity`))
+})

@@ -453,8 +453,44 @@ rule, including its condition.
 `ENCOUNTER_STATION_SERVICE_PROVIDER` represents the input ward as an Organization
 referenced by the ward/service Encounter. Choose `generate-reference` for a
 separate Organization, `reference-only` for its external reference, `contained`
-for an Organization embedded in the Encounter, or `none` (default).
-Organization IDs are stable across encounters for the same facility, department
-and ward. `ENCOUNTER_STATION_LOCATION` independently controls the ward Location
+for an Organization embedded in the Encounter, or `none`. The default is
+`generate-reference`.
+With shared identity, Organization IDs are stable across encounters for the same
+facility, department and ward. `ENCOUNTER_STATION_LOCATION` independently controls the ward Location
 with physical type `wa` and defaults to true. Room and bed locations and the
 Location output controls remain applicable.
+
+
+## Patient-independent resource identities
+
+`ORGANIZATION_IDENTITY`, `LOCATION_IDENTITY` and `MEDICATION_IDENTITY` each accept
+`shared` (default) or `separate`. The three settings are independent.
+
+Shared Organizations and Locations use the configured `PID_PREFIX` and
+`PID_SUFFIX` as separate facility-key components, together with department and
+place hierarchy. Configurations with the same prefix/suffix pair represent the
+same synthetic facility; use different pairs for different facilities. Patient
+identifiers, repetition counters and execution timestamps do not enter shared
+identities. Identical inputs therefore reuse IDs across patients, packages and
+runs. A bed belongs to its complete ward/room path: beds named “Bed 1” in different
+rooms remain distinct. The actual parent reference also participates in identity.
+The generated location hierarchy uses `partOf`; the ward Organization is referenced
+by the Encounter's `serviceProvider`.
+
+Shared Medications reuse the product definition, including product name,
+code/system, ATC code/version, form and ingredient code/system. A matching name
+alone does not establish product identity.
+
+With `separate`, Organizations and Locations are scoped to their ward/service
+Encounter. Medications are scoped to each MedicationRequest,
+MedicationAdministration or MedicationStatement, including events added by the
+medication transformation settings. Supported referenced medication ingredients
+are copied into the same event context. Clinical events, their dosage and timing
+remain separate and retain their values.
+
+Each patient bundle includes its generated support resources. The same shared
+resource may occur in several bundles with an identical ID and a PUT request;
+these are repeated deliveries of one logical resource. Every package can thus be
+uploaded independently. Explicit reference-only resource settings continue to
+require the referenced resources on the target server. Concurrent synthetic stays
+may reference the same shared bed.
