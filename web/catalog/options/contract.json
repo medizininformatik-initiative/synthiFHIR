@@ -424,8 +424,8 @@
       "labelKey": "option.Location.identity.label",
       "helpKey": "option.Location.identity.help",
       "choiceLabelKeys": {
-        "shared": "choice.identity.shared",
-        "separate": "choice.identity.separate"
+        "shared": "choice.Location.identity.shared",
+        "separate": "choice.Location.identity.separate"
       },
       "propertyName": "LOCATION_IDENTITY",
       "enabledWhen": [
@@ -589,8 +589,8 @@
       "labelKey": "option.Medication.identity.label",
       "helpKey": "option.Medication.identity.help",
       "choiceLabelKeys": {
-        "shared": "choice.identity.shared",
-        "separate": "choice.identity.separate"
+        "shared": "choice.Medication.identity.shared",
+        "separate": "choice.Medication.identity.separate"
       },
       "propertyName": "MEDICATION_IDENTITY"
     },
@@ -2262,8 +2262,8 @@
       "labelKey": "option.Organization.identity.label",
       "helpKey": "option.Organization.identity.help",
       "choiceLabelKeys": {
-        "shared": "choice.identity.shared",
-        "separate": "choice.identity.separate"
+        "shared": "choice.Organization.identity.shared",
+        "separate": "choice.Organization.identity.separate"
       },
       "propertyName": "ORGANIZATION_IDENTITY",
       "enabledWhen": [
