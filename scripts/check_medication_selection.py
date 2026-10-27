@@ -1,5 +1,5 @@
 """Verify product reference identity and descriptive output from input rows."""
-from check_output_selection import descriptive_reference, named_id
+from check_output_selection import descriptive_reference, named_id, event_product_id
 
 
 def product_id(row):
@@ -17,6 +17,7 @@ def check_medication_references(rows, resources, options, pid):
         wanted = expected[identifier]
         product = wanted['medicationReference']['reference'].removeprefix('Medication/')
         label = next(row['Präparatbezeichnung'] for row in rows if product_id(row) == product)
+        product = event_product_id(product, wanted, options)
         reference = descriptive_reference('Medication', product, label, options)
         if reference: wanted['medicationReference'] = reference
         else: wanted.pop('medicationReference')

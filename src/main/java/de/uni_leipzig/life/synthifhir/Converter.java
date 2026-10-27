@@ -97,9 +97,6 @@ public abstract class Converter {
     final List<String> encounterIDs;
 
     /**  */
-    final String dizID;
-
-    /**  */
     private final CSVRecord record;
 
     /**  */
@@ -136,7 +133,6 @@ public abstract class Converter {
         this.options = options;
         pid = parsePatientId(previousRecordPID);
         encounterIDs = parseEncounterIds();
-        dizID = pid.toUpperCase().replaceAll("[^A-Z]", "");
         columnIdentifiersClass = reflectColumnIdentifiersClass();
     }
 
@@ -437,14 +433,6 @@ public abstract class Converter {
             }
         }
         return createReference(referenceType, elementID);
-    }
-
-    /**
-     * @return
-     * @throws Exception
-     */
-    protected String getDIZId() throws Exception {
-        return dizID;
     }
 
     /**

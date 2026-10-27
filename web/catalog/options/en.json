@@ -824,5 +824,17 @@
   "app.bulk.gzip": "Compress with gzip",
   "app.bulk.formatPlain": "Output: One .ndjson file per subrun with the configured patient count. One complete FHIR transaction Bundle per line.",
   "app.bulk.checksDisabled": "Input diagnostics and FHIR validation are disabled in bulk mode.",
-  "app.bulk.outputIntro": "Each bulk subrun produces one NDJSON file. Choose whether to compress it with gzip. Set the patients per subrun in the generation settings above."
+  "app.bulk.outputIntro": "Each bulk subrun produces one NDJSON file. Choose whether to compress it with gzip. Set the patients per subrun in the generation settings above.",
+  "option.Organization.identity.label": "Reuse an organization or create a new one",
+  "option.Organization.identity.help": "Reuse: The same ward in the same facility and department receives the same Organization object with the same ID, including across patients and runs. Create new: Each encounter receives a separate FHIR object for the organization, even for the same ward. This can produce a very large number of Organization objects.",
+  "option.Location.identity.label": "Reuse a location or create a new one",
+  "option.Location.identity.help": "Reuse: The same place receives the same Location object with the same ID, including across patients and runs. Facility, department and parent places are taken into account: Bed 1 in Room 101 is a different place from Bed 1 in Room 102. Create new: Each place is created as a separate FHIR object for each encounter. This can produce a very large number of Location objects.",
+  "option.Medication.identity.label": "Reuse a medication or create a new one",
+  "option.Medication.identity.help": "Reuse: Medications with matching product details receive the same Medication object with the same ID. Create new: A separate FHIR object for the medication is created for each medication request, administration or statement, even when the product details match. This can produce a very large number of Medication objects. The medication entries themselves remain separate with either setting.",
+  "choice.Organization.identity.shared": "Reuse the same organization",
+  "choice.Organization.identity.separate": "Create a new organization for each encounter",
+  "choice.Location.identity.shared": "Reuse the same location",
+  "choice.Location.identity.separate": "Create separate places for each encounter",
+  "choice.Medication.identity.shared": "Reuse the same medication",
+  "choice.Medication.identity.separate": "Create a new medication for each medication entry"
 }

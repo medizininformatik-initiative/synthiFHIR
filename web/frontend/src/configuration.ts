@@ -6,7 +6,8 @@ import catalogueData from '../../catalog/dar/generated/catalog.json' with { type
 import schema from '../../catalog/options/configuration.schema.json' with { type: 'json' }
 
 export type Value = string | number | boolean | string[] | null
-export type Dependency = { option: string; equals: string | number | boolean }
+export type Dependency = { option: string; equals?: string | number | boolean; oneOf?: (string | number | boolean)[] }
+export const dependencyValues = (dependency: Dependency) => dependency.oneOf ?? [dependency.equals!]
 export type Option = {
   id: string
   propertyName: string
@@ -122,7 +123,7 @@ export function optionEnabled(
   if (id.endsWith('.endApplication') && values[id.replace('.endApplication', '.endPolicy')] === 'preserve') return false
   return (option.enabledWhen ?? []).every(
     (d) =>
-      values[d.option] === d.equals && optionEnabled(d.option, values, next)
+      dependencyValues(d).some(value => values[d.option] === value) && optionEnabled(d.option, values, next)
   )
 }
 export function unmetDependencies(
@@ -130,7 +131,7 @@ export function unmetDependencies(
   values: Configuration['values']
 ): Dependency[] {
   return dependencies.filter(
-    (d) => values[d.option] !== d.equals || !optionEnabled(d.option, values)
+    (d) => !dependencyValues(d).some(value => values[d.option] === value) || !optionEnabled(d.option, values)
   )
 }
 export function resourceEnabled(
@@ -357,9 +358,11 @@ export function resourceOptions(id: string): Option[] {
   return options.filter(
     (o) =>
       o.section === 'resources' &&
-      ((o.id.startsWith(`resource.${id}.`) && (id !== 'Encounter' || !/^resource\.Encounter\.(ambulatory|inpatient)\./.test(o.id))) ||
+      ((o.id.startsWith(`resource.${id}.`) && (id !== 'Encounter' || (!/^resource\.Encounter\.(ambulatory|inpatient)\./.test(o.id) && !['resource.Encounter.stationServiceProvider', 'resource.Encounter.stationLocation'].includes(o.id)))) ||
         o.id.startsWith(`reference.${id}.`) ||
         (id === 'Encounter' && o.id.startsWith('contact.')) ||
+        (id === 'Organization' && o.id === 'resource.Encounter.stationServiceProvider') ||
+        (id === 'Location' && o.id === 'resource.Encounter.stationLocation') ||
         (id === 'MedicationRequest' &&
           o.id === 'medication.requestTreatment') ||
         o.id.startsWith(`medication.${id}.`))
