@@ -124,6 +124,9 @@ def rename_bulk(job_id, name):
                 if old.name.endswith(('.ndjson.gz', '.ndjson')):
                     from bulk_ndjson import manifest_path as package_manifest
                     moves.append((package_manifest(old), package_manifest(new)))
+                    from package_statistics import report_path
+                    if report_path(old).exists():
+                        moves.append((report_path(old), report_path(new)))
                 item['path'] = old.name
         if packages.exists() and set(packages.iterdir()) != {old for old, _ in moves}:
             raise ValueError('Unexpected files in the package directory')
