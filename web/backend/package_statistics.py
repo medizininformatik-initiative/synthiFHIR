@@ -1,5 +1,5 @@
 """English package reports collected from bundles already parsed for export."""
-from collections import Counter
+from collections import Counter, defaultdict
 
 CLASS_NAMES = {'AMB': 'ambulatory', 'IMP': 'inpatient', 'EMER': 'emergency',
                'OBSENC': 'observation', 'SS': 'short stay', 'HH': 'home health', 'VR': 'virtual'}
@@ -11,6 +11,8 @@ class Statistics:
     def __init__(self):
         self.bundles = 0
         self.resources = Counter()
+        self.resource_ids = defaultdict(set)
+        self.missing_ids = Counter()
         self.encounters = Counter()
         self.contacts = Counter()
 
@@ -22,6 +24,11 @@ class Statistics:
                 continue
             kind = resource['resourceType']
             self.resources[kind] += 1
+            identifier = resource.get('id')
+            if identifier:
+                self.resource_ids[kind].add(identifier)
+            else:
+                self.missing_ids[kind] += 1
             if kind != 'Encounter':
                 continue
             coding = resource.get('class') or {}
@@ -36,6 +43,8 @@ class Statistics:
 
     def snapshot(self):
         return {'bundles': self.bundles, 'resources': dict(self.resources),
+                'distinctIds': {kind: len(self.resource_ids[kind]) for kind in sorted(self.resources)},
+                'missingIds': dict(self.missing_ids),
                 'encounters': [[*key, value] for key, value in sorted(self.encounters.items())],
                 'contacts': [[*key, value] for key, value in sorted(self.contacts.items())]}
 
@@ -50,11 +59,20 @@ def write(package, data):
     lines = ['Resource statistics', f'Package: {package.name}',
              f'Transaction bundles: {data["bundles"]:,}', f'Patient resources: {resources.get("Patient", 0):,}',
              f'Total resources: {sum(resources.values()):,}', '',
-             'Counting method: Counts resource occurrences in Bundle.entry.resource, not distinct IDs.',
+             'Resource counts include all occurrences in Bundle.entry.resource.',
+             'Distinct IDs are counted per resource type within this package; repeated IDs count once.',
+             'Resources without an ID contribute to occurrences only.',
              'Transaction bundles are transport envelopes and are counted separately.',
              'Main encounters: without partOf. Sub-encounters: with partOf (all nested levels).',
              'Contained resources are not counted as standalone resources.', '', 'RESOURCE TYPES']
     lines.extend(f'{kind}: {count:,}' for kind, count in sorted(resources.items()))
+    lines.extend(['', 'DISTINCT RESOURCE IDS BY TYPE'])
+    if 'distinctIds' in data:
+        lines.extend(f'{kind}: {count:,}' for kind, count in sorted(data['distinctIds'].items()))
+        lines.extend(['', 'RESOURCE OCCURRENCES WITHOUT AN ID'])
+        lines.extend(f'{kind}: {data.get("missingIds", {}).get(kind, 0):,}' for kind in sorted(resources))
+    else:
+        lines.append('Not available in this package checkpoint.')
     lines.extend(['', 'ENCOUNTERS BY CLASS (Total / Main encounters / Sub-encounters)'])
     encounters = {(system, code, hierarchy): n for system, code, hierarchy, n in data['encounters']}
     for system, code in sorted({(system, code) for system, code, _ in encounters}):

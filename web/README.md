@@ -730,7 +730,7 @@ Directory names use a Europe/Berlin timestamp, a sanitized dataset name and the 
 
 Workbench runs publish reusable datasets in their named directory under
 `outputGlobal/`. Standard runs export one ZIP
-per dataset variant; bulk runs publish NDJSON files directly in the run directory, one file per subrun with the configured patient count (up to 10,000). The final subrun may contain fewer patients. Each NDJSON package has an English `-statistics.txt` report alongside it, listing resource counts and encounters by class, parent/child relationship and contact level. Counts are collected while writing the package; reporting requires no additional pass over its contents. The interface shows a copyable result directory.
+per dataset variant; bulk runs publish NDJSON files directly in the run directory, one file per subrun with the configured patient count (up to 10,000). The final subrun may contain fewer patients. Each NDJSON package has an English `-statistics.txt` report alongside it, listing resource occurrences, distinct resource IDs per resource type within the package, and encounters by class, parent/child relationship and contact level. Repeated IDs count once per type; resources without an ID are listed separately and contribute only to occurrence counts. Contained resources are excluded. Counts are collected while writing the package; reporting requires no additional pass over its contents. The interface shows a copyable result directory.
 Inputs, logs, reports and intermediate files remain in the internal Workbench
 volume. Standard-run downloads and reports remain available in the interface.
 Deleting a run also removes its exported datasets and result directory. Cleaning up a run retains its exported datasets.

@@ -81,6 +81,10 @@ class NdjsonTests(unittest.TestCase):
         import package_statistics as stats
         resources = [
             {'resourceType': 'Patient', 'id': 'p1'},
+            {'resourceType': 'Location', 'id': 'shared', 'name': 'Room 101'},
+            {'resourceType': 'Location', 'id': 'shared', 'name': 'Updated name'},
+            {'resourceType': 'Location', 'id': 'other'},
+            {'resourceType': 'Medication', 'id': 'shared'},
             {'resourceType': 'Encounter', 'class': {'system': 'classes', 'code': 'IMP'},
              'type': [{'coding': [{'system': 'http://fhir.de/CodeSystem/Kontaktebene', 'code': 'einrichtungskontakt'}]}]},
             {'resourceType': 'Encounter', 'class': {'system': 'classes', 'code': 'IMP'},
@@ -95,7 +99,7 @@ class NdjsonTests(unittest.TestCase):
             with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as temp:
                 root = Path(temp); part = root / 'part-00001'; part.mkdir()
                 (part / 'p001.json.gz').write_bytes(gzip.compress(raw))
-                (part / 'support-001.json.gz').write_bytes(gzip.compress(b'{"resourceType":"Bundle","type":"collection","entry":[{"resource":{"resourceType":"Organization","id":"o1"}}]}'))
+                (part / 'support-001.json.gz').write_bytes(gzip.compress(b'{"resourceType":"Bundle","type":"collection","entry":[{"resource":{"resourceType":"Organization","id":"o1"}},{"resource":{"resourceType":"Location","id":"shared"}}]}'))
                 target = root / ('patients' + suffix)
                 with patch.object(stats, 'write', side_effect=OSError('report interrupted')):
                     with self.assertRaisesRegex(OSError, 'report interrupted'):
@@ -109,8 +113,15 @@ class NdjsonTests(unittest.TestCase):
                 self.assertFalse(part.exists())
                 report = stats.report_path(target)
                 text = report.read_text()
-                self.assertIn('Total resources: 7', text)
+                self.assertIn('Total resources: 12', text)
                 self.assertIn('Transaction bundles: 2', text)
+                snapshot = ndjson.read_manifest(target)['statistics']
+                self.assertEqual(4, snapshot['resources']['Location'])
+                self.assertEqual({'Patient': 1, 'Location': 2, 'Medication': 1, 'Encounter': 0, 'Observation': 0, 'Organization': 1}, snapshot['distinctIds'])
+                self.assertEqual({'Encounter': 4, 'Observation': 1}, snapshot['missingIds'])
+                self.assertIn('DISTINCT RESOURCE IDS BY TYPE', text)
+                self.assertIn('Location: 2', text)
+                self.assertIn('Medication: 1', text)
                 self.assertIn('IMP (inpatient; classes): 2 / 1 / 1', text)
                 self.assertIn('AMB (ambulatory; classes): 1 / 1 / 0', text)
                 self.assertIn('Department contact | IMP (classes) | Sub-encounter: 1', text)
@@ -120,3 +131,13 @@ class NdjsonTests(unittest.TestCase):
                 with patch.object(ndjson, 'line', side_effect=AssertionError('Must not parse bundles again')):
                     ndjson.package(root, [part.name], target, lambda *_: None)
                 self.assertEqual(text, report.read_text())
+
+    def test_older_checkpoint_does_not_claim_zero_distinct_ids(self):
+        import package_statistics as stats
+        with tempfile.TemporaryDirectory() as temp:
+            target = Path(temp) / 'old.ndjson'
+            stats.write(target, {'bundles': 1, 'resources': {'Location': 2}, 'encounters': [], 'contacts': []})
+            text = stats.report_path(target).read_text()
+            self.assertIn('Location: 2', text)
+            self.assertIn('Not available in this package checkpoint.', text)
+            self.assertNotIn('Location: 0', text)
