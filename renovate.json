@@ -98,5 +98,8 @@
       "depNameTemplate": "aquasecurity/trivy",
       "datasourceTemplate": "github-releases"
     }
+  ],
+  "ignorePaths": [
+    "web/deployment/upstream/**"
   ]
 }
