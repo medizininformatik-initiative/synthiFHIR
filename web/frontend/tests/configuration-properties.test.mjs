@@ -155,3 +155,30 @@ test('case identifiers roundtrip with scope and restricted pattern tokens', () =
     assert.throws(() => importConfiguration(JSON.stringify(invalid)))
   }
 })
+
+test('support identities default to shared and roundtrip independently', () => {
+  for (let mask = 0; mask < 8; mask++) {
+    const config = defaults()
+    ;['Organization', 'Location', 'Medication'].forEach((type, index) => {
+      assert.equal(config.values[`resource.${type}.identity`], 'shared')
+      config.values[`resource.${type}.identity`] = mask & (1 << index) ? 'separate' : 'shared'
+    })
+    assert.deepEqual(importConfiguration(exported(config)), config)
+  }
+})
+
+
+test('inactive support selections roundtrip with readable alternative prerequisites', () => {
+  const config = defaults()
+  config.values['resource.Location.mode'] = 'neither'
+  config.values['resource.Location.identity'] = 'separate'
+  config.values['resource.Encounter.stationLocation'] = false
+  config.values['resource.Encounter.stationServiceProvider'] = 'none'
+  config.values['resource.Organization.identity'] = 'separate'
+  const text = exported(config)
+  assert.match(text, /^# LOCATION_IDENTITY = separate$/m)
+  assert.match(text, /^# ENCOUNTER_STATION_LOCATION = false$/m)
+  assert.match(text, /^# ORGANIZATION_IDENTITY = separate$/m)
+  assert.doesNotMatch(text, /undefined/)
+  assert.deepEqual(importConfiguration(text), config)
+})

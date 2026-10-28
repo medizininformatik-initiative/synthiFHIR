@@ -1,0 +1,11 @@
+// Keep the pinned Synthea source while applying the Guava security fix.
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { dependency ->
+            if (dependency.requested.group == 'com.google.guava' && dependency.requested.name == 'guava') {
+                dependency.useVersion('33.7.2-jre')
+                dependency.because('Fix CVE-2026-102554')
+            }
+        }
+    }
+}

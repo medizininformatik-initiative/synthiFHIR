@@ -277,7 +277,7 @@ function App() {
       {(['generate', 'runs', 'services'] as const).map((tab, index, tabs) => <button key={tab} type="button" role="tab" id={`main-tab-${tab}`} aria-controls={`main-panel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1} onClick={() => setActiveTab(tab)} onKeyDown={event => {
         const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null
         if (next !== null) { event.preventDefault(); setActiveTab(tabs[next]); document.getElementById(`main-tab-${tabs[next]}`)?.focus() }
-      }} className={`rounded-lg border px-4 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-teal-600 ${activeTab === tab ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>{t(tab === 'generate' ? 'app.tabs.generate' : tab === 'runs' ? 'app.runs' : 'app.tabs.services')}</button>)}
+      }} className={`rounded-lg border px-4 py-1 min-h-[var(--control-height)] text-sm font-medium focus-visible:outline-2 focus-visible:outline-teal-600 ${activeTab === tab ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>{t(tab === 'generate' ? 'app.tabs.generate' : tab === 'runs' ? 'app.runs' : 'app.tabs.services')}</button>)}
     </div>
     {alert && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-800">{t(alert.key, alert.params)}</p>}
     <div role="tabpanel" id="main-panel-generate" aria-labelledby="main-tab-generate" hidden={activeTab !== 'generate'}>

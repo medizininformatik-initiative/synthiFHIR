@@ -411,6 +411,34 @@
       "propertyName": "LOCATION_MODE"
     },
     {
+      "id": "resource.Location.identity",
+      "section": "resources",
+      "type": "enum",
+      "default": "shared",
+      "status": "agreed",
+      "control": "radio",
+      "choices": [
+        "shared",
+        "separate"
+      ],
+      "labelKey": "option.Location.identity.label",
+      "helpKey": "option.Location.identity.help",
+      "choiceLabelKeys": {
+        "shared": "choice.Location.identity.shared",
+        "separate": "choice.Location.identity.separate"
+      },
+      "propertyName": "LOCATION_IDENTITY",
+      "enabledWhen": [
+        {
+          "option": "resource.Location.mode",
+          "oneOf": [
+            "generate-reference",
+            "reference-only"
+          ]
+        }
+      ]
+    },
+    {
       "id": "resource.Location.existingReference",
       "section": "resources",
       "type": "boolean",
@@ -546,6 +574,25 @@
         "neither": "choice.neither"
       },
       "propertyName": "MEDICATION_MODE"
+    },
+    {
+      "id": "resource.Medication.identity",
+      "section": "resources",
+      "type": "enum",
+      "default": "shared",
+      "status": "agreed",
+      "control": "radio",
+      "choices": [
+        "shared",
+        "separate"
+      ],
+      "labelKey": "option.Medication.identity.label",
+      "helpKey": "option.Medication.identity.help",
+      "choiceLabelKeys": {
+        "shared": "choice.Medication.identity.shared",
+        "separate": "choice.Medication.identity.separate"
+      },
+      "propertyName": "MEDICATION_IDENTITY"
     },
     {
       "id": "resource.Medication.existingReference",
@@ -2202,6 +2249,35 @@
       "fhirPath": "Encounter.serviceProvider"
     },
     {
+      "id": "resource.Organization.identity",
+      "section": "resources",
+      "type": "enum",
+      "default": "shared",
+      "status": "agreed",
+      "control": "radio",
+      "choices": [
+        "shared",
+        "separate"
+      ],
+      "labelKey": "option.Organization.identity.label",
+      "helpKey": "option.Organization.identity.help",
+      "choiceLabelKeys": {
+        "shared": "choice.Organization.identity.shared",
+        "separate": "choice.Organization.identity.separate"
+      },
+      "propertyName": "ORGANIZATION_IDENTITY",
+      "enabledWhen": [
+        {
+          "option": "resource.Encounter.stationServiceProvider",
+          "oneOf": [
+            "generate-reference",
+            "reference-only",
+            "contained"
+          ]
+        }
+      ]
+    },
+    {
       "id": "resource.Encounter.stationLocation",
       "propertyName": "ENCOUNTER_STATION_LOCATION",
       "section": "resources",
@@ -2214,6 +2290,13 @@
         {
           "option": "resource.Encounter.enabled",
           "equals": true
+        },
+        {
+          "option": "resource.Location.mode",
+          "oneOf": [
+            "generate-reference",
+            "reference-only"
+          ]
         }
       ],
       "fhirPath": "Encounter.location"

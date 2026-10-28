@@ -40,10 +40,14 @@ class ContractConsistencyTest(unittest.TestCase):
             graph[key] = [c['option'] for c in conditions]
             for condition in conditions:
                 target = self.options[condition['option']]
-                if target['type'] == 'enum':
-                    self.assertIn(condition['equals'], target['choices'], key)
-                else:
-                    self.assertIs(type(condition['equals']), type(target['default']), key)
+                self.assertNotEqual('equals' in condition, 'oneOf' in condition)
+                allowed = condition['oneOf'] if 'oneOf' in condition else [condition['equals']]
+                self.assertTrue(allowed)
+                for value in allowed:
+                    if target['type'] == 'enum':
+                        self.assertIn(value, target['choices'], key)
+                    else:
+                        self.assertIs(type(value), type(target['default']), key)
         def visit(node, path):
             self.assertNotIn(node, path, 'Cyclic control dependency')
             for parent in graph[node]:

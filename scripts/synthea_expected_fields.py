@@ -5,8 +5,7 @@ being checked. It contains the fields eligible for DAR, not a full FHIR resource
 """
 from copy import deepcopy
 import base64
-import re
-from check_output_selection import event_id, named_id, enabled, resource_key
+from check_output_selection import event_id, enabled, resource_key, identity_key, place_id, event_product_id
 from check_medication_selection import product_id
 from check_medication_transformations import primitive, transformed_medications
 from check_time_shift import temporal_expectations, shift_days, shift_date
@@ -90,7 +89,13 @@ def expected_fields(source, report):
         r = add('Medication', product_id(row), code={'coding': codes})
         if row['Darreichungsform']: r['form'] = {'text': row['Darreichungsform']}
         r['ingredient'] = [{'itemCodeableConcept': {'coding': [coding(code.strip(), row['Wirkstoffcodesystem'])]}} for code in row['Wirkstoffcode'].split(';')]
-    for medication in transformed_medications(rows['Medikation'], options, pid): result[medication['id']] = medication
+    for medication in transformed_medications(rows['Medikation'], options, pid):
+        original = medication['medicationReference']['reference'].removeprefix('Medication/')
+        product = event_product_id(original, medication, options)
+        if product != original:
+            result[product] = {**deepcopy(result[original]), 'id': product}
+            medication['medicationReference']['reference'] = 'Medication/' + product
+        result[medication['id']] = medication
     for row in rows['Impfung']:
         add('Immunization', event_id(pid, 'Immunization', row['Eintrag ID']), vaccineCode={'coding': [coding(row['Code'], row['Codesystem'], row['Version'])] if row['Code'] else []})
     for row in rows['Befundbericht']:
@@ -112,7 +117,6 @@ def expected_fields(source, report):
             for part in parts: parent = parent[int(part)] if isinstance(parent, list) else parent.setdefault(part, {})
             parent[key] = shifted
     contacts = contact_expectations(source, report)
-    diz = re.sub('[^A-Z]', '', pid.upper())
     for identifier, contact in contacts.items():
         start, end = shift_date(contact['start'], days), shift_date(contact['end'], days)
         scope = {'AMB': 'AMBULATORY', 'IMP': 'INPATIENT'}.get(contact['cls'])
@@ -126,9 +130,12 @@ def expected_fields(source, report):
                 {'url': 'VierteStelle', 'valueCoding': {'system': 'http://fhir.de/CodeSystem/dkgev/AufnahmegrundVierteStelle', 'code': '7'}}]}]
         row = contact.get('row')
         if row:
-            path = diz + '|' + row['Fachabteilung']
+            path, parent = identity_key(row['Fachabteilung']), None
             for kind, name in zip(('wa', 'ro', 'bd'), (row['Station'], row['Zimmer'], row['Bett'])):
                 if name:
-                    path += '|' + kind + '|' + name
-                    add('Location', named_id('Location', diz + '|Location|' + path), name=name)
+                    path += identity_key(kind, name)
+                    if kind == 'wa' and not enabled(options, 'ENCOUNTER_STATION_LOCATION'): continue
+                    location = place_id('Location', identity_key(path, parent), identifier, options)
+                    add('Location', location, name=name)
+                    parent = 'Location/' + location
     return result

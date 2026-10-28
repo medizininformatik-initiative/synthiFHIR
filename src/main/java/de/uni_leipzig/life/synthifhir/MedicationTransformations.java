@@ -69,6 +69,13 @@ public final class MedicationTransformations {
         String type = action.endsWith("administration") ? "MedicationAdministration" : "MedicationStatement";
         Resource target = type.equals("MedicationAdministration") ? new MedicationAdministration() : new MedicationStatement();
         target.setId(derivedId(source, type, requestPass));
+        Type medication = source instanceof MedicationRequest ? ((MedicationRequest)source).getMedication()
+                : source instanceof MedicationAdministration ? ((MedicationAdministration)source).getMedication()
+                : ((MedicationStatement)source).getMedication();
+        if (medication != null) {
+            if (target instanceof MedicationAdministration) ((MedicationAdministration)target).setMedication(medication.copy());
+            else ((MedicationStatement)target).setMedication(medication.copy());
+        }
         if (input.inputContext(source) != null) input.recordInput(target, input.inputContext(source));
         return target;
     }
