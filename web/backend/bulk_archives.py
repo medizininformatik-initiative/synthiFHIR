@@ -9,6 +9,7 @@ import time
 import zipfile
 
 import store
+import bulk_ndjson
 
 
 def patient_ids(path):
@@ -28,6 +29,8 @@ def patient_count(manifest):
 
 
 def read_manifest(path, verify=True, update=None):
+    if path.name.endswith(bulk_ndjson.SUFFIXES):
+        return bulk_ndjson.read_manifest(path, verify, update)
     with zipfile.ZipFile(path) as archive:
         manifest = json.loads(archive.read('manifest.json'))
         files = manifest['files']
@@ -61,7 +64,9 @@ def read_manifest(path, verify=True, update=None):
 
 def package_path(directory, parts, target):
     """Keep published packages stable on resume; name new ones from actual files."""
-    candidates = [target, *target.parent.glob(target.stem + '-*Pat.zip')]
+    suffix = next((suffix for suffix in bulk_ndjson.SUFFIXES if target.name.endswith(suffix)), '.zip')
+    stem = target.name[:-len(suffix)]
+    candidates = [target, *target.parent.glob(stem + '-*Pat' + suffix)]
     existing = [path for path in candidates if path.is_file()]
     if len(existing) > 1:
         raise ValueError('Multiple published ZIPs exist for this package')
@@ -69,11 +74,13 @@ def package_path(directory, parts, target):
         return existing[0]
     count = len({pid for part in parts for path in (directory / part).glob('*.json.gz')
                  for pid in patient_ids(path)})
-    return target.with_name(f'{target.stem}-{count}Pat.zip')
+    return target.with_name(f'{stem}-{count}Pat{suffix}')
 
 
 def package(directory, parts, destination, update, chunks=None):
     """Verify all bytes before publication and before removing recoverable loose copies."""
+    if destination.name.endswith(bulk_ndjson.SUFFIXES):
+        return bulk_ndjson.package(directory, parts, destination, update, chunks)
     if destination.exists():
         manifest = read_manifest(destination, update=update)
         if set(manifest['chunks']) != set(parts):
@@ -155,12 +162,13 @@ def publish(folder, snapshot):
     """Expose packages as ordinary selectable/downloadable datasets without copying them."""
     destination = output_path(snapshot)
     items = []
-    for path in sorted(package_directory(snapshot).glob('*.zip')):
+    for path in package_files(snapshot):
         manifest = read_manifest(path, verify=False)
         items.append({'id': folder.name + '.' + str(len(items)), 'name': path.stem,
-                      'kind': 'bulk', 'path': path.relative_to(destination).as_posix(),
+                      'filename': path.name, 'kind': 'bulk', 'path': path.relative_to(destination).as_posix(),
                       'size': path.stat().st_size, 'sha256': store.digest(path),
-                      'inspection': {'patients': patient_count(manifest)}, 'files': []})
+                      'inspection': {'patients': patient_count(manifest)}, 'files': [],
+                      **({'statistics': manifest['statistics']} if 'statistics' in manifest else {})})
     from bulk_generation import atomic_json
     atomic_json(folder / 'datasets.json', {'schemaVersion': 1, 'datasets': items, 'artifacts': []})
 
@@ -210,3 +218,8 @@ def package_directory(snapshot):
     destination = output_path(snapshot)
     existing = destination / 'packages'
     return existing if existing.is_dir() else destination
+
+
+def package_files(snapshot, prefix=''):
+    suffix = bulk_ndjson.suffix(snapshot)
+    return sorted(package_directory(snapshot).glob(prefix + '*' + suffix))

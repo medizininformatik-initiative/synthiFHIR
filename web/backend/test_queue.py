@@ -59,6 +59,24 @@ class QueueTests(QueueFixture):
         with store.connect() as db:
             self.assertEqual(descriptor, db.execute('SELECT descriptor FROM uploads WHERE id=?', (upload_id,)).fetchone()[0])
 
+    def test_delete_removes_empty_renamed_export_and_keeps_other_runs(self):
+        import json
+        job = store.create('starter', 'default')
+        snapshot = json.loads((store.ROOT / 'jobs' / job / 'snapshot.json').read_text())
+        metadata = result_exports.metadata_path(snapshot)
+        metadata.parent.mkdir(parents=True)
+        metadata.write_text(json.dumps({'resultOutputName': 'renamed-run'}))
+        destination = result_exports.path(snapshot)
+        destination.mkdir(parents=True)
+        other = result_exports.ROOT / 'other-run'
+        other.mkdir()
+        (other / 'keep.txt').write_text('keep')
+        store.finish(job, 'cancelled', 1)
+        store.delete(job)
+        self.assertFalse(destination.exists())
+        self.assertFalse(metadata.exists())
+        self.assertEqual('keep', (other / 'keep.txt').read_text())
+
     def test_snapshots_are_independent_of_source_and_profile_changes(self):
         first = store.create('starter', 'default')
         original = (store.ROOT / 'jobs' / first / 'snapshot.json').read_bytes()

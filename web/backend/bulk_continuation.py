@@ -93,7 +93,7 @@ def create(job_id, population, request_id=None):
             settings.update(population=population,
                             patientSeed=bulk_plan.seed_at(settings['patientSeed'], (snapshot.get('continuation', {}).get('sourceOffset', 0) + saved['completed']) // 100))
             previous = snapshot.get('continuation', {})
-            continuation = {'sourceRun': job_id, 'seriesRoot': previous.get('seriesRoot', job_id),
+            continuation = {'seriesNumber': result_exports.series_number(snapshot) + 1, 'sourceRun': job_id, 'seriesRoot': previous.get('seriesRoot', job_id),
                             'completedBefore': previous.get('completedBefore', 0) + saved['completed'],
                             'identifierCounters': saved['identifierCounters'],
                             'identifierHistorySha256': saved['identifierHistorySha256'],

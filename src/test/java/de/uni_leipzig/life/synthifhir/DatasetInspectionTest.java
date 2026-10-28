@@ -51,4 +51,39 @@ public class DatasetInspectionTest {
         assertEquals(1, report.get("uniqueResources").asInt());
         assertEquals(1, report.get("patients").asInt());
     }
+
+    @Test public void statisticsAgreeAcrossFormatsAndKeepOccurrencesSeparateFromIds() throws Exception {
+        Path root = temporary.newFolder().toPath();
+        String encounter = "{\"resourceType\":\"Encounter\",\"id\":\"same\","
+                + "\"class\":{\"system\":\"class-system\",\"code\":\"IMP\"},\"partOf\":{\"reference\":\"Encounter/parent\"},"
+                + "\"type\":[{\"coding\":[{\"system\":\"http://fhir.de/CodeSystem/Kontaktebene\",\"code\":\"abteilungskontakt\"}]}]}";
+        String patient = "{\"resourceType\":\"Patient\",\"id\":\"same\",\"contained\":[{\"resourceType\":\"Medication\",\"id\":\"hidden\"}]}";
+        String bundle = "{\"resourceType\":\"Bundle\",\"entry\":[{\"resource\":" + patient
+                + "},{\"resource\":" + encounter + "},{\"resource\":" + encounter
+                + "},{\"resource\":{\"resourceType\":\"Location\"}}]}";
+        String xmlEncounter = "<Encounter><id value=\"same\"/><class><system value=\"class-system\"/><code value=\"IMP\"/></class>"
+                + "<partOf><reference value=\"Encounter/parent\"/></partOf><type><coding>"
+                + "<system value=\"http://fhir.de/CodeSystem/Kontaktebene\"/><code value=\"abteilungskontakt\"/>"
+                + "</coding></type></Encounter>";
+        Files.writeString(root.resolve("one.json"), bundle);
+        Files.writeString(root.resolve("one.ndjson"), bundle);
+        Files.writeString(root.resolve("one.xml"), "<Bundle xmlns=\"http://hl7.org/fhir\"><entry><resource>"
+                + "<Patient><id value=\"same\"/><contained><Medication><id value=\"hidden\"/></Medication></contained></Patient>"
+                + "</resource></entry><entry><resource>" + xmlEncounter + "</resource></entry><entry><resource>"
+                + xmlEncounter + "</resource></entry><entry><resource><Location/></resource></entry></Bundle>");
+        var statistics = DatasetInspection.inspect(root).get("statistics");
+        assertEquals(1, statistics.get("bundles").asInt());
+        assertEquals(2, statistics.path("resources").path("Encounter").asInt());
+        assertEquals(1, statistics.path("distinctIds").path("Encounter").asInt());
+        assertEquals(1, statistics.path("distinctIds").path("Patient").asInt());
+        assertEquals(0, statistics.path("distinctIds").path("Location").asInt());
+        assertEquals(1, statistics.path("missingIds").path("Location").asInt());
+        assertFalse(statistics.path("resources").has("Medication"));
+        assertEquals("Sub-encounter", statistics.path("encounters").get(0).get(2).asText());
+        assertEquals("Department contact", statistics.path("contacts").get(0).get(0).asText());
+        Files.delete(root.resolve("one.json"));
+        assertEquals(statistics, DatasetInspection.inspect(root).get("statistics"));
+        Files.delete(root.resolve("one.ndjson"));
+        assertEquals(statistics, DatasetInspection.inspect(root).get("statistics"));
+    }
 }

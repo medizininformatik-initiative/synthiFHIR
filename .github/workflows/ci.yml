@@ -62,6 +62,9 @@ jobs:
       - name: Build
         run: mvn -B package
 
+      - name: Verify packaged FHIR validation without OGNL
+        run: java -Xmx4g --class-path target/synthifhir.jar web/integration/CheckPackagedValidation.java
+
       - name: Check converter option contract
         run: |
           python3 web/catalog/options/generate_schema.py --check

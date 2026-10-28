@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Language } from './i18n'
 
 export type BulkStatus = {
-  completed: number; total: number; chunk: number; phase: string;
+  archiveFormat?: string; completed: number; total: number; chunk: number; phase: string;
   run?: number; runs?: number; finishedRuns?: number; stageCompleted?: number; stageTotal?: number;
   workCompleted?: number; workTotal?: number;
   attempts?: number; generatedBytes?: number; archiveBytes?: number;
@@ -30,8 +30,8 @@ export function BulkProgress({ progress, subruns, state, language }: { progress?
     return [days ? `${days} ${de ? 'Tage' : 'days'}` : '', hours ? `${hours} h` : '', `${minutes % 60} min`].filter(Boolean).join(' ')
   }
   const phases: Record<string, string> = de
-    ? { starting: 'Teillauf wird vorbereitet', generating: 'Patienten werden generiert', compressing: 'Synthea-Dateien werden komprimiert', mapping: 'Daten werden aufbereitet', converting: 'FHIR-Dateien werden erzeugt', packaging: 'ZIP-Paket wird geprüft und gespeichert', 'between-chunks': 'Nächste Teilmenge wird vorbereitet', 'between-runs': 'Nächster Teillauf wird vorbereitet', complete: 'Abgeschlossen' }
-    : { starting: 'Preparing subrun', generating: 'Generating patients', compressing: 'Compressing Synthea files', mapping: 'Mapping data', converting: 'Writing FHIR files', packaging: 'Verifying and saving ZIP package', 'between-chunks': 'Preparing next chunk', 'between-runs': 'Preparing next subrun', complete: 'Complete' }
+    ? { starting: 'Teillauf wird vorbereitet', generating: 'Patienten werden generiert', compressing: 'Synthea-Dateien werden komprimiert', mapping: 'Daten werden aufbereitet', converting: 'FHIR-Dateien werden erzeugt', packaging: 'Ausgabedatei wird geschrieben', 'between-chunks': 'Nächste Teilmenge wird vorbereitet', 'between-runs': 'Nächster Teillauf wird vorbereitet', complete: 'Abgeschlossen' }
+    : { starting: 'Preparing subrun', generating: 'Generating patients', compressing: 'Compressing Synthea files', mapping: 'Mapping data', converting: 'Writing FHIR files', packaging: 'Writing output file', 'between-chunks': 'Preparing next chunk', 'between-runs': 'Preparing next subrun', complete: 'Complete' }
   const states: Record<string, string> = de
     ? { queued: 'Ausstehend', running: 'Läuft', succeeded: 'Abgeschlossen', failed: 'Fehlgeschlagen', cancelled: 'Abgebrochen', interrupted: 'Unterbrochen' }
     : { queued: 'Pending', running: 'Running', succeeded: 'Complete', failed: 'Failed', cancelled: 'Cancelled', interrupted: 'Interrupted' }
@@ -67,7 +67,7 @@ export function BulkProgress({ progress, subruns, state, language }: { progress?
       <p>{de ? 'FHIR-Daten erzeugt' : 'FHIR data generated'}: <strong>{bytes(p.generatedBytes ?? 0)}</strong>{state !== 'succeeded' && ` / ${de ? 'Geschätzte Gesamtgröße' : 'Estimated total size'}: ${p.estimatedTotalBytes == null ? (de ? 'Wird ermittelt' : 'Calculating') : `${de ? 'ca.' : 'approx.'} ${bytes(p.estimatedTotalBytes)}`}`}</p>
       {state === 'running' && <p>{de ? 'Geschätzte Restzeit' : 'Estimated time remaining'}: {p.remainingSeconds == null ? (de ? 'Wird ermittelt' : 'Calculating') : `${de ? 'ca.' : 'approx.'} ${duration(p.remainingSeconds)}`}</p>}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-        <p>{de ? 'In ZIP-Paketen gespeichert' : 'Stored in ZIP packages'}: {bytes(p.archiveBytes ?? 0)}</p>
+        <p>{p.archiveFormat === 'ndjson.gz' ? (de ? 'In NDJSON-Gzip-Dateien gespeichert' : 'Stored in NDJSON Gzip files') : p.archiveFormat === 'ndjson' ? (de ? 'In NDJSON-Dateien gespeichert' : 'Stored in NDJSON files') : (de ? 'In ZIP-Paketen gespeichert' : 'Stored in ZIP packages')}: {bytes(p.archiveBytes ?? 0)}</p>
         {state === 'running' && <p>{de ? 'Letzte Statusmeldung' : 'Last status update'}: {p.updatedAt ? new Date(p.updatedAt * 1000).toLocaleTimeString(locale) : (de ? 'Noch keine' : 'None yet')}</p>}
       </div>
     </div>

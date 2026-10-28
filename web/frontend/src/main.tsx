@@ -115,6 +115,7 @@ function App() {
   }, [diagnostics, tableFormat])
   const [seriesMode, setSeriesMode] = useState(() => !!localStorage.getItem('workbenchContinuation'))
   const [continuation, setContinuation] = useState<Continuation | null>(null)
+  const [bulkGzip, setBulkGzip] = useState(true)
   const [generation, setGeneration] = useState<Generation | null>(null)
   const [executionMode, setExecutionMode] = useState<'standard' | 'bulk'>('standard')
   const [uploadingInput, setUploadingInput] = useState(false)
@@ -276,7 +277,7 @@ function App() {
       {(['generate', 'runs', 'services'] as const).map((tab, index, tabs) => <button key={tab} type="button" role="tab" id={`main-tab-${tab}`} aria-controls={`main-panel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1} onClick={() => setActiveTab(tab)} onKeyDown={event => {
         const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null
         if (next !== null) { event.preventDefault(); setActiveTab(tabs[next]); document.getElementById(`main-tab-${tabs[next]}`)?.focus() }
-      }} className={`rounded-lg border px-4 py-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-teal-600 ${activeTab === tab ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>{t(tab === 'generate' ? 'app.tabs.generate' : tab === 'runs' ? 'app.runs' : 'app.tabs.services')}</button>)}
+      }} className={`rounded-lg border px-4 py-1 min-h-[var(--control-height)] text-sm font-medium focus-visible:outline-2 focus-visible:outline-teal-600 ${activeTab === tab ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700'}`}>{t(tab === 'generate' ? 'app.tabs.generate' : tab === 'runs' ? 'app.runs' : 'app.tabs.services')}</button>)}
     </div>
     {alert && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-800">{t(alert.key, alert.params)}</p>}
     <div role="tabpanel" id="main-panel-generate" aria-labelledby="main-tab-generate" hidden={activeTab !== 'generate'}>
@@ -287,7 +288,7 @@ function App() {
         <label className="flex w-full sm:w-80 flex-col gap-2 text-sm font-medium">{t('app.datasetName')}<input className="rounded-lg border border-slate-300 p-2.5" disabled={!!continuation} maxLength={200} value={datasetName} onChange={e => setDatasetName(e.target.value)} placeholder={t('app.datasetNameHint')}/></label>
         <Button className="sm:mt-7" onClick={() => void start()} disabled={busy || uploadingInput || !canStart}><Play size={16}/>{t(source === 'synthea-generation' ? 'app.generation.start' : 'app.start')}</Button>
       </div>
-      {source === 'synthea-generation' ? <GenerationSettings sourceOffset={continuation?.sourceOffset ?? 0} continuationLocked={!!continuation} seriesControls={<div className="mt-4 grid gap-3 sm:grid-cols-2">
+      {source === 'synthea-generation' ? <GenerationSettings bulkGzip={bulkGzip} onBulkGzipChange={setBulkGzip} sourceOffset={continuation?.sourceOffset ?? 0} continuationLocked={!!continuation} seriesControls={<div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm"><span className="flex min-h-6 items-center">{t('app.series.mode')}<Help text={t('app.series.help')} t={key => t(key as TextKey)}/></span><select className="mt-1 w-full rounded-lg border p-2" disabled={busy} value={seriesMode ? 'continue' : 'new'} onChange={e => e.target.value === 'new' ? newSeries() : chooseSeries()}><option value="new">{t('app.series.new')}</option><option value="continue">{t('app.series.continue')}</option></select></label>
         {seriesMode && <label className="text-sm"><span className="flex min-h-6 items-center">{t('app.series.previous')}</span><select className="mt-1 w-full rounded-lg border p-2" disabled={busy} value={continuation?.sourceRun ?? ''} onChange={e => { if (e.target.value) void loadContinuation(e.target.value); else setContinuation(null) }}><option value="">{t('app.series.choose')}</option>{jobs.filter(item => item.bulk_continuable).map(item => <option key={item.id} value={item.id}>{item.dataset_name || item.id.slice(0, 8)} · {item.generation?.population.toLocaleString(locale)} · {new Date(item.created * 1000).toLocaleString(locale)}</option>)}</select></label>}
         {continuation && <p className="text-sm sm:col-span-2">{t('app.series.range', { previous: continuation.completedBefore.toLocaleString(locale), first: (continuation.completedBefore + 1).toLocaleString(locale), last: (continuation.completedBefore + (generation?.population ?? 0)).toLocaleString(locale) })}<Help text={t('app.series.lockedHelp')} t={key => t(key as TextKey)}/></p>}
@@ -295,7 +296,7 @@ function App() {
       <p className="mt-4 text-xs text-slate-500">{t(nativeOutput ? 'app.generation.nativeHint' : bulkOutput ? 'app.bulk.overrides' : 'app.outputHint')}</p>
     </section>
     <div hidden={nativeOutput}>
-      <ConfigurationEditor readOnly={!!continuation} bulkMode={bulkOutput} key={editorLoad?.key} initialConfiguration={editorLoad?.configuration} language={language} onChange={setConfiguration}/>
+      <ConfigurationEditor bulkGzip={bulkGzip} onBulkGzipChange={setBulkGzip} readOnly={!!continuation} bulkMode={bulkOutput} key={editorLoad?.key} initialConfiguration={editorLoad?.configuration} language={language} onChange={setConfiguration}/>
     </div>
     </div>
     <div role="tabpanel" id="main-panel-services" aria-labelledby="main-tab-services" hidden={activeTab !== 'services'}>

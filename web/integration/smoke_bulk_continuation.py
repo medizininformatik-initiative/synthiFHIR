@@ -66,15 +66,13 @@ def run():
         def bundles(job):
             snapshot = json.loads((store.ROOT / 'jobs' / job['id'] / 'snapshot.json').read_text())
             data = {}
-            for path in result_exports.path(snapshot).glob('*.zip'):
-                with zipfile.ZipFile(path) as archive:
-                    for name in archive.namelist():
-                        if name.endswith('.json.gz'):
-                            raw = gzip.decompress(archive.read(name))
-                            bundle = json.loads(raw)
-                            patient, = [e['resource']['id'] for e in bundle['entry'] if e['resource']['resourceType'] == 'Patient']
-                            assert patient not in data
-                            data[patient] = raw
+            for path in result_exports.path(snapshot).glob('*.ndjson.gz'):
+                with gzip.open(path, 'rb') as stream:
+                    for raw in stream:
+                        bundle = json.loads(raw)
+                        patient, = [e['resource']['id'] for e in bundle['entry'] if e['resource']['resourceType'] == 'Patient']
+                        assert patient not in data
+                        data[patient] = raw
             return data
 
         with patch.object(store, 'ROOT', root / 'data'), patch.object(result_exports, 'ROOT', root / 'output'), \

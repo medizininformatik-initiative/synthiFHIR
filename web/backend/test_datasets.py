@@ -46,7 +46,7 @@ class DatasetTests(QueueFixture):
         self.assertEqual('COMPLETE', response.json()['status'])
         self.assertEqual(2, len(self.client.get('/api/datasets').json()))
 
-    def test_host_exports_contain_only_dataset_zips_and_survive_run_deletion(self):
+    def test_host_exports_contain_only_dataset_zips_and_are_removed_with_run(self):
         self.build()
         store.finish(self.job, 'succeeded', 0)
         snapshot = json.loads((self.folder / 'snapshot.json').read_text())
@@ -58,7 +58,7 @@ class DatasetTests(QueueFixture):
             self.assertEqual((self.folder / f'dataset-{index}.zip').read_bytes(), file.read_bytes())
         self.assertEqual(result_exports.label(snapshot), store.get(self.job)['output_directory'])
         store.delete(self.job)
-        self.assertTrue(all(file.is_file() for file in files))
+        self.assertFalse(destination.exists())
 
     def test_downloads_require_terminal_jobs_and_manifest_membership(self):
         manifest = self.build()
@@ -87,3 +87,28 @@ class DatasetTests(QueueFixture):
         with self.assertRaises(datasets.CancelledInspection):
             datasets.build(self.job, {}, lambda: True)
         self.assertFalse((self.folder / 'datasets.json').exists())
+
+    def test_statistics_are_shared_by_api_download_and_dataset_archive(self):
+        statistics = {'bundles': 2, 'resources': {'Patient': 1, 'Location': 3},
+                      'distinctIds': {'Patient': 1, 'Location': 1}, 'missingIds': {'Location': 1},
+                      'encounters': [], 'contacts': []}
+        with patch.object(datasets, 'inspect', return_value={'patients': 1, 'statistics': statistics}):
+            manifest = datasets.build(self.job, json.loads((self.folder / 'snapshot.json').read_text()))
+        self.assertEqual(404, self.client.get(f'/api/datasets/{self.job}.0/statistics').status_code)
+        store.finish(self.job, 'succeeded', 0)
+        for index, item in enumerate(manifest['datasets']):
+            self.assertEqual(statistics, item['statistics'])
+            response = self.client.get(f"/api/datasets/{item['id']}/statistics")
+            self.assertEqual(200, response.status_code)
+            self.assertIn('attachment;', response.headers['content-disposition'])
+            self.assertIn('Location: 3', response.text)
+            self.assertIn('DISTINCT RESOURCE IDS BY TYPE\nLocation: 1', response.text)
+            with zipfile.ZipFile(self.folder / f'dataset-{index}.zip') as archive:
+                self.assertEqual(response.content, archive.read('resource-statistics.txt'))
+            self.assertEqual(response.content, (self.run / 'fhir' / item['name'] / 'resource-statistics.txt').read_bytes())
+        self.assertEqual(404, self.client.get(f'/api/datasets/{self.job}.99/statistics').status_code)
+
+    def test_older_inspection_does_not_invent_missing_statistics(self):
+        self.build()
+        store.finish(self.job, 'succeeded', 0)
+        self.assertEqual(404, self.client.get(f'/api/datasets/{self.job}.0/statistics').status_code)

@@ -68,7 +68,7 @@ RUN useradd --create-home --uid 10001 workbench && mkdir /data && chown workbenc
 USER workbench
 CMD ["python", "worker.py"]
 
-FROM amazoncorretto:17.0.20-alpine AS api
+FROM amazoncorretto:17.0.21-alpine AS api
 RUN apk add --no-cache python3 py3-pip tzdata && python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app

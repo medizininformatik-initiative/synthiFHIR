@@ -682,7 +682,7 @@ unavailable; their recorded execution status is retained.
 
 Synthea KDS runs generate tables and FHIR with source diagnostics disabled by default. Enable **Detailed source diagnostics** to compare the result with the Synthea source and retain detailed transfer reports. This increases runtime, memory and disk usage. The selection is saved with the run and restored when loading it into the editor. Input checks, conversion failures and missing-output checks always run. FHIR validation remains a separate configuration option.
 
-### Bulk gzip JSON generation
+### Bulk NDJSON generation
 
 Run `bash web/prepare-bulk.sh` from the project directory before submitting a bulk
 run. It stops the currently running optional Compose services (DataPortal and its
@@ -711,26 +711,43 @@ Identifier collisions across patients and chunks stop publication of the affecte
 chunk. A disk-backed index checks identifier ownership, including case-scoped
 sharing, and is rebuilt from checksummed registration journals on resume.
 Overall progress weights generation, KDS mapping and conversion (or native JSON
-compression), and ZIP writing/checksum verification equally per patient. A second
+compression), and NDJSON writing equally per patient. A second
 bar shows the current stage. The patient counter counts completed chunks; the
 remaining-time estimate uses measured processing times rather than stage weights.
 Choose **KDS FHIR** to apply the clinical configuration and German mappings, or
-**Synthea FHIR** to retain the original US FHIR R4 output. Both produce one
-gzip-compressed JSON bundle per patient (`.json.gz`). Synthea output also retains
-separate organization and clinician bundles as `support-*.json.gz` in each chunk.
-Decompression restores the original Synthea JSON bytes. Source diagnostics and
+**Synthea FHIR** to retain the original US FHIR R4 resources. Both produce one
+NDJSON file per subrun. **Compress with gzip** is enabled by default and writes
+`.ndjson.gz` using gzip level 6. Disable it for a plain `.ndjson` file ready for
+blazectl. The bulk output format is fixed; standard-run format and validation
+controls are replaced by the bulk output settings. Each line contains a complete
+FHIR transaction Bundle. Synthea organization and clinician bundles are retained;
+collection bundles receive PUT requests using their existing resource IDs.
+Resource values and decimal precision are preserved. Source diagnostics and
 FHIR validation are disabled in bulk mode. Bulk runs do not create dataset previews, CSV downloads,
 whole-run ZIPs or detailed reports. Standard runs retain their existing behavior.
 
-Directory names use a Europe/Berlin timestamp, a sanitized dataset name and the unique run ID. Dataset names use portable ASCII letters, digits, hyphens and underscores and retain at most the final 24 characters. The timestamp uses `YYYYMMDD-HHMMSS`; the full run UUID is written without hyphens. Patient files are named `p001.json.gz` through `p100.json.gz` within each chunk; patient IDs remain inside the bundles.
+Directory names use a Europe/Berlin timestamp, a sanitized dataset name and the unique run ID. Dataset names use portable ASCII letters, digits, hyphens and underscores and retain at most the final 24 characters. The timestamp uses `YYYYMMDD-HHMMSS`. Standard runs use the full run UUID without hyphens. Bulk runs use `<timestamp>_<dataset-name>_<patients>Pat_<series-id>`, where the series ID is the first eight characters of the initial run UUID. Continuations append `(2)`, `(3)`, and so on; these positions remain stable when earlier runs are deleted. The patient count describes the current run. Patient IDs remain inside the transaction Bundles.
 
-Standard and bulk Workbench runs publish reusable dataset ZIPs under
-`outputGlobal/<timestamp>_<dataset-name>_<run-id>/`. Standard runs export one ZIP
-per dataset variant; bulk runs publish ZIPs directly in the run directory, each containing at most
-1,000 patients from one subrun. The interface shows a copyable result directory.
+Workbench runs publish reusable datasets in their named directory under
+`outputGlobal/`. Standard runs export one ZIP
+per dataset variant; bulk runs publish NDJSON files directly in the run directory, one file per subrun with the configured patient count (up to 10,000). The final subrun may contain fewer patients. Each NDJSON package has an English `-statistics.txt` report alongside it, listing resource occurrences, distinct resource IDs per resource type within the package, and encounters by class, parent/child relationship and contact level. Repeated IDs count once per type; resources without an ID are listed separately and contribute only to occurrence counts. Contained resources are excluded. Counts are collected while writing the package; reporting requires no additional pass over its contents. The interface shows a copyable result directory.
+
+Each dataset and bulk package exposes **Resource statistics** and a separate
+**Download statistics** link in its run results. The resource table distinguishes
+occurrences, distinct IDs and missing IDs; encounter rows show contact level,
+class and hierarchy. Counts apply to the selected dataset or package, not the
+whole series. IDs shared between packages must not be added as if they were unique.
+
+Standard runs include `resource-statistics.txt` in their dataset ZIP and full-run
+ZIP. Statistics inspect one output representation per folder, so simultaneous
+JSON, NDJSON and XML exports do not multiply the counts. Bulk downloads retain
+pure NDJSON or gzip-compressed NDJSON; download their text statistics separately.
+Both the interface and text download use the same saved counters. Older results
+without saved counters explicitly show that statistics are unavailable; existing
+bulk checkpoints with statistics can be displayed without rereading their payloads.
 Inputs, logs, reports and intermediate files remain in the internal Workbench
 volume. Standard-run downloads and reports remain available in the interface.
-Deleting or cleaning a run does not remove its exported ZIPs.
+Deleting a run also removes its exported datasets and result directory. Cleaning up a run retains its exported datasets.
 
 Compose prepares the output directory before starting the unprivileged services.
 On Linux it grants the service user access using filesystem ACLs and retains the
@@ -738,13 +755,21 @@ checkout owner's access. Docker Desktop uses its shared-folder permissions.
 No host UID configuration or manual permission changes are required on supported
 writable local filesystems. Read-only shares cannot be used as output directories.
 
-Bulk chunks are staged internally until their ZIP is closed and verified. ZIP
-stores `.json.gz` files without recompressing them. The `-<count>Pat.zip` suffix
-reports distinct Patient resources actually contained in the package.
-Reference-only output retains clinical resources and reports `0Pat` when no
-Patient resources are included. Every bulk package contains a manifest with
-checksums and generation checkpoints. Packages can be downloaded individually
-or selected for FHIR upload.
+Completed 100-patient chunks are checkpointed and staged internally until the
+subrun NDJSON file is closed and atomically published. An interrupted package
+is rebuilt from completed chunks; generation does not restart those chunks.
+Hidden `.manifest` sidecars retain checksums and generation checkpoints for resume.
+The `-<count>Pat.ndjson.gz` suffix reports distinct Patient resources in the file.
+Reference-only output retains clinical resources and reports `0Pat` when no Patient
+resources are included. Files can be downloaded individually or selected for upload.
+
+For blazectl, decompress the files while retaining the compressed copies:
+
+```sh
+gunzip -k *.ndjson.gz
+```
+
+Upload the resulting transaction-Bundle NDJSON files with `blazectl upload`.
 
 Each chunk uses a distinct reproducible patient seed derived from the submitted
 seed. A 10,000-patient subrun consumes 100 seeds; the next starts with the following
@@ -754,7 +779,7 @@ common time shift apply. Additional patient copies and per-copy
 time shifts are disabled. Synthea output uses the generator settings directly;
 KDS configuration and synthetic consent apply only to KDS output. Overflow is disabled in bulk mode.
 The processes finish between chunks, and successful chunks release their temporary
-sources and tables. The final gzip JSON collection continues to consume disk space.
+sources and tables. The final NDJSON files continues to consume disk space.
 
 Only successfully completed chunks receive a `part-*` name. Hidden `.partial`
 directories are incomplete and must not be imported or shared. A failed or cancelled
@@ -803,10 +828,10 @@ completion. No per-patient console messages are displayed.
 After the first completed chunk, the interface estimates remaining generation time
 and total compressed FHIR size from completed chunks. These estimates adapt as more
 patients complete. They are approximate: patient histories vary, and packaging adds
-some overhead. Generated FHIR bytes and the size stored in ZIP packages are shown separately; these are not two retained copies.
+some overhead. Generated FHIR bytes and the size stored in compressed packages are shown separately; these are not two retained copies.
 
 A failed or cancelled overall job stops before subsequent subruns. **Resume overall
-job** reuses its saved settings and seeds, skips completed chunks in verified ZIP packages or loose chunk directories and
+job** reuses its saved settings and seeds, skips completed chunks in published packages or loose chunk directories and
 recreates only unfinished temporary work. Completed files and packages remain in
 place. Resume requires the generator, converter and importer versions saved with
 the job. Keep its local output files and job record until it finishes.
@@ -833,7 +858,7 @@ start two successors. Keep the latest block's job record for continuation.
 
 The isolated integration test compares 300 patients in one job against 275 followed
 by a 25-patient continuation without regeneration. It uses seeded source fixtures and the real mapper,
-converter, consent enrichment, counter restoration and ZIP publication, comparing
+converter, consent enrichment, counter restoration and NDJSON publication, comparing
 uncompressed FHIR bytes and identifier uniqueness:
 
 ```bash
@@ -842,13 +867,12 @@ docker run --rm -i --memory=4g --cpus=2 synthifhir-workbench-worker:latest pytho
 
 ### Uploading bulk packages
 
-In **Provide & use data**, start Blaze or HAPI, select completed ZIP packages and
+In **Provide & use data**, start Blaze or HAPI, select completed datasets and
 submit an upload. Search by run name and use **Select all matches** to select all
 packages of a run. The packages use the same dataset selection as standard results.
 
 The uploader scans the selected resources for conflicting contents before writing
-to the server. For bulk packages it reads one gzip-compressed patient bundle at a
-time directly from the ZIP; it does not extract archives or create full upload
+to the server. For bulk NDJSON files it reads one Bundle line at a time, decompressing gzip when enabled; it does not extract archives or create full upload
 copies. A temporary on-disk resource hash index supports conflict detection.
 Ordinary datasets in a mixed selection retain their existing format conversion.
 

@@ -772,4 +772,24 @@ public class ClinicalImportConverterTest {
             }
         }
     }
+    @Test public void medicationProductIdentityRetainsEverySupportedProductFact() throws Exception {
+        var options = new ConverterOptions("");
+        var base = new HashMap<String, String>();
+        base.put("Medikationstyp", "Verordnung");
+        base.put("Präparatbezeichnung", "Product"); base.put("Präparatcode", "123");
+        base.put("Präparatcodesystem", "PZN"); base.put("ATC-Code", "N06AA09");
+        base.put("ATC-Version", "2026"); base.put("Darreichungsform", "Tablet");
+        base.put("Wirkstoffcode", "ingredient"); base.put("Wirkstoffcodesystem", "ASK");
+        var medication = new MedicationConverter(row(base, MedicationConverter.Medication_Columns.values()), null,
+                new ConverterResult(options), null, options).convertInternal().get(0);
+        for (var change : Map.of("Präparatbezeichnung", "Another product", "Präparatcode", "456",
+                "Präparatcodesystem", "RxNorm", "ATC-Code", "N06AA10", "ATC-Version", "2025",
+                "Darreichungsform", "Solution", "Wirkstoffcode", "other", "Wirkstoffcodesystem", "UNII").entrySet()) {
+            var values = new HashMap<>(base); values.put(change.getKey(), change.getValue());
+            var changed = new MedicationConverter(row(values, MedicationConverter.Medication_Columns.values()), null,
+                    new ConverterResult(options), null, options).convertInternal().get(0);
+            assertNotEquals(change.getKey(), medication.getId(), changed.getId());
+        }
+    }
+
 }

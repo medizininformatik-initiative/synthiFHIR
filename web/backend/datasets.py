@@ -9,6 +9,7 @@ import time
 import zipfile
 
 import store
+import package_statistics
 
 
 class CancelledInspection(Exception):
@@ -117,6 +118,17 @@ def build_locked(job_id, snapshot, cancelled=lambda: False):
             manifest['datasets'].append(item)
             try:
                 item['inspection'] = inspect(data, folder / ('dataset-' + identifier + '.json'), cancelled)
+                statistics = item['inspection'].get('statistics')
+                if statistics is not None:
+                    report = data / 'resource-statistics.txt'
+                    report.write_text(package_statistics.render(name, statistics, kind="Dataset"), encoding='utf-8')
+                    report_relative = report.relative_to(root).as_posix()
+                    artifact = {'id': file_id(report_relative), 'path': report_relative,
+                                'size': report.stat().st_size, 'report': None}
+                    manifest['artifacts'] = [file for file in manifest['artifacts'] if file['path'] != report_relative]
+                    manifest['artifacts'].append(artifact)
+                    item['files'] = [file for file in item['files'] if file['path'] != report_relative] + [artifact]
+                    item['statistics'] = statistics
                 target = folder / ('dataset-' + identifier + '.zip')
                 with zipfile.ZipFile(target.with_suffix('.tmp'), 'w', zipfile.ZIP_DEFLATED) as archive:
                     for file in item['files']:
@@ -140,7 +152,24 @@ def build_locked(job_id, snapshot, cancelled=lambda: False):
 
 def get(job_id):
     path = store.ROOT / 'jobs' / job_id / 'datasets.json'
-    return json.loads(path.read_text()) if path.is_file() else {'datasets': [], 'artifacts': [], 'pending': True}
+    manifest = json.loads(path.read_text()) if path.is_file() else {'datasets': [], 'artifacts': [], 'pending': True}
+    # Read saved bulk counters only; never scan large payloads for a UI request.
+    bulk = [item for item in manifest.get('datasets', []) if item.get('kind') == 'bulk' and 'statistics' not in item]
+    if bulk:
+        import bulk_archives
+        snapshot = json.loads((path.parent / 'snapshot.json').read_text())
+        root = bulk_archives.output_path(snapshot)
+        for item in bulk:
+            payload = root / item['path']
+            if payload.is_symlink() or not payload.resolve().is_relative_to(root.resolve()):
+                continue
+            try:
+                saved = bulk_archives.read_manifest(payload, verify=False)
+                if 'statistics' in saved:
+                    item['statistics'] = saved['statistics']
+            except (OSError, ValueError, zipfile.BadZipFile):
+                pass
+    return manifest
 
 
 def resolve_dataset(identifier):

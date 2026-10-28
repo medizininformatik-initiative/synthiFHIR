@@ -6,7 +6,7 @@ RUN --mount=type=cache,id=synthifhir-maven,target=/root/.m2,sharing=locked \
     mvn -B clean install
 
 
-FROM amazoncorretto:17.0.20-alpine
+FROM amazoncorretto:17.0.21-alpine
 
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50"
 

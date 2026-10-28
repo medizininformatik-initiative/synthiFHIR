@@ -125,8 +125,8 @@ class ContinuationTests(QueueFixture):
         root = result_exports.path(snapshot)
         part = folder / 'part-00001'
         part.mkdir()
-        (part / 'patient.json.gz').write_bytes(gzip.compress(b'{"resourceType":"Patient","id":"test"}'))
-        archive = root / 'packages/run-00001-package-00001.zip'
+        (part / 'patient.json.gz').write_bytes(gzip.compress(b'{"resourceType":"Bundle","type":"transaction","entry":[{"resource":{"resourceType":"Patient","id":"test"}}]}'))
+        archive = root / 'packages/run-00001-package-00001.ndjson.gz'
         bulk_archives.package(folder, [part.name], archive, lambda *_: None)
         bulk_archives.publish(folder, snapshot)
         item, = datasets.get(self.job)['datasets']
@@ -144,3 +144,22 @@ class ContinuationTests(QueueFixture):
         self.assertEqual('synthiFHIR', series.preview(self.job)['datasetName'])
         child = series.create(self.job, 100)
         self.assertEqual('synthiFHIR', store.get(child)['dataset_name'])
+        self.assertTrue(new_root.name.endswith(f'_synthiFHIR_100Pat_{UUID(self.job).hex[:8]}'))
+        child_snapshot = json.loads((store.ROOT / 'jobs' / child / 'snapshot.json').read_text())
+        self.assertTrue(child_snapshot['resultOutputName'].endswith(f'_synthiFHIR_100Pat_{UUID(self.job).hex[:8]}(2)'))
+        self.complete(child, {'patient': 200, 'case': 3000})
+        grandchild = series.create(child, 200)
+        third_snapshot = json.loads((store.ROOT / 'jobs' / grandchild / 'snapshot.json').read_text())
+        self.assertTrue(third_snapshot['resultOutputName'].endswith(f'_synthiFHIR_200Pat_{UUID(self.job).hex[:8]}(3)'))
+        self.assertEqual(3, result_exports.series_number(third_snapshot))
+        legacy = dict(child_snapshot)
+        legacy['continuation'] = {k: v for k, v in legacy['continuation'].items() if k != 'seriesNumber'}
+        self.assertEqual(2, result_exports.series_number(legacy))
+        result_exports.metadata_path(legacy).write_text(json.dumps({'seriesNumber': 2}))
+        store.delete(self.job)
+        self.assertFalse(new_root.exists())
+        self.assertEqual(2, result_exports.series_number(legacy))
+        self.assertFalse(result_exports.metadata_path(snapshot).exists())
+        self.complete(grandchild, {'patient': 400, 'case': 5000})
+        self.assertEqual(grandchild, series.preview(child)['sourceRun'])
+        self.assertEqual(3, result_exports.series_number(third_snapshot))

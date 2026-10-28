@@ -18,18 +18,43 @@ from test_queue import QueueFixture
 
 
 class StreamingTests(QueueFixture):
+    def test_bulk_statistics_download_uses_saved_counts_and_recovers_old_manifest(self):
+        import package_statistics
+        for compressed in (False, True):
+            dataset = self.publish(resources=[{'resourceType': 'Location', 'id': 'same'},
+                                             {'resourceType': 'Location', 'id': 'same'}],
+                                   layout=5, compressed=compressed)
+            job, item, payload = datasets.resolve_dataset(dataset)
+            expected = package_statistics.report_path(payload).read_bytes()
+            original_payload = payload.read_bytes()
+            client = TestClient(app)
+            response = client.get(f'/api/datasets/{dataset}/statistics')
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(expected, response.content)
+            self.assertEqual(2, item['statistics']['resources']['Location'])
+            self.assertEqual(1, item['statistics']['distinctIds']['Location'])
+            manifest_path = store.ROOT / 'jobs' / job['id'] / 'datasets.json'
+            saved = json.loads(manifest_path.read_text())
+            del saved['datasets'][0]['statistics']
+            manifest_path.write_text(json.dumps(saved))
+            with patch('bulk_ndjson.open_stream', side_effect=AssertionError('Do not scan payloads')):
+                recovered = client.get(f"/api/jobs/{job['id']}/artifacts").json()
+                self.assertEqual(item['statistics'], recovered['datasets'][0]['statistics'])
+                self.assertEqual(expected, client.get(f'/api/datasets/{dataset}/statistics').content)
+            self.assertEqual(original_payload, payload.read_bytes())
+
     def setUp(self):
         super().setUp()
         self.output = self.root / 'mass'
         patcher = patch.object(bulk_generation, 'OUTPUT_ROOT', self.output)
         patcher.start(); self.addCleanup(patcher.stop)
 
-    def publish(self, resources=None):
+    def publish(self, resources=None, layout=3, compressed=True):
         job = store.create('starter', 'default')
         folder = store.ROOT / 'jobs' / job
         snapshot = json.loads((folder / 'snapshot.json').read_text())
         snapshot.update(bulkOutputName=job, bulkOutputDirectory='outputGlobal/' + job,
-                        generation={'executionMode': 'bulk', 'population': 2, 'patientsPerRun': 100, 'patientSeed': '1'}, bulkLayoutVersion=3)
+                        generation={'bulkGzip': compressed, 'executionMode': 'bulk', 'population': 2, 'patientsPerRun': 100, 'patientSeed': '1'}, bulkLayoutVersion=layout)
         (folder / 'snapshot.json').chmod(0o600)
         (folder / 'snapshot.json').write_text(json.dumps(snapshot))
         root = bulk_archives.output_path(snapshot)
@@ -37,7 +62,8 @@ class StreamingTests(QueueFixture):
         resources = resources or [{'resourceType': 'Patient', 'id': 'one'}, {'resourceType': 'Patient', 'id': 'two'}]
         for index, resource in enumerate(resources):
             (part / f'p{index:03d}.json.gz').write_bytes(gzip.compress(json.dumps({'resourceType': 'Bundle', 'type': 'transaction', 'entry': [{'resource':resource}]}).encode()))
-        bulk_archives.package(part.parent, [part.name], root / 'packages/run-00001-package-00001.zip', lambda *_: None)
+        suffix = ('.ndjson.gz' if compressed else '.ndjson') if layout >= 5 else '.zip'
+        bulk_archives.package(part.parent, [part.name], root / ('packages/run-00001-package-00001' + suffix), lambda *_: None)
         bulk_archives.publish(folder, snapshot)
         store.finish(job, 'succeeded', 0)
         return datasets.get(job)['datasets'][0]['id']
@@ -111,3 +137,17 @@ class StreamingTests(QueueFixture):
         resumed=uploads.resume(action['id'])
         self.assertEqual('hapi',resumed['descriptor']['target']['id'])
         self.assertEqual('queued',resumed['state'])
+
+    def test_ndjson_streaming_download_and_cancellation(self):
+        for compressed in (True, False):
+            identifier = self.publish(layout=5, compressed=compressed)
+            job, item, path = datasets.resolve_dataset(identifier)
+            with patch.object(bulk_uploads, 'source', return_value=path):
+                values = list(bulk_uploads.bundles(item, self.root, None, None, lambda: False))
+            self.assertEqual(['one', 'two'], [value['entry'][0]['resource']['id'] for value in values])
+            with patch.object(bulk_uploads, 'source', return_value=path), self.assertRaises(InterruptedError):
+                list(bulk_uploads.bundles(item, self.root, None, None, lambda: True))
+            response = TestClient(app).get('/api/datasets/' + identifier + '/download')
+            self.assertEqual(200, response.status_code)
+            self.assertIn('.ndjson.gz' if compressed else '.ndjson', response.headers['content-disposition'])
+            self.assertEqual(path.read_bytes(), response.content)

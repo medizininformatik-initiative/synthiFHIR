@@ -344,6 +344,21 @@ def list_datasets():
             for job in store.jobs() if job['state'] in {'succeeded', 'failed'} for item in datasets.get(job['id'])['datasets']]
 
 
+@app.get('/api/datasets/{dataset_id}/statistics')
+def dataset_statistics(dataset_id: str):
+    try:
+        _, item, _ = datasets.resolve_dataset(dataset_id)
+        statistics = item.get('statistics')
+        if statistics is None:
+            raise HTTPException(404, 'Statistics are not available for this dataset')
+        import package_statistics
+        label = item.get('filename', item['name'])
+        return PlainTextResponse(package_statistics.render(label, statistics, kind="Package" if item.get("kind") == "bulk" else "Dataset"), headers={
+            'Content-Disposition': f'attachment; filename="{dataset_id}-statistics.txt"'})
+    except FileNotFoundError as error:
+        raise HTTPException(404, str(error))
+
+
 @app.get('/api/datasets/{dataset_id}/download')
 def dataset_download(dataset_id: str):
     try:
@@ -354,8 +369,11 @@ def dataset_download(dataset_id: str):
         if count is None:
             count = archive_names.patient_count(path)
         if item.get('kind') == 'bulk':
-            stem = re.sub(r'-\d+Pat$', '', path.stem)
-            name = f'{stem}-{count}Pat.zip'
+            if path.name.endswith(('.ndjson.gz', '.ndjson')):
+                name = path.name
+            else:
+                stem = re.sub(r'-\d+Pat$', '', path.stem)
+                name = f'{stem}-{count}Pat.zip'
         else:
             name = archive_names.filename(job.get('dataset_name'), count, dataset_id)
         return FileResponse(path, filename=name)

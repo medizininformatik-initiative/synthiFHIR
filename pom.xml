@@ -18,6 +18,7 @@
 		<log4j.version>2.26.1</log4j.version>
 		<jackson-core.version>2.22.3</jackson-core.version>
 		<jackson-databind.version>2.22.3</jackson-databind.version>
+		<guava.version>33.7.2-jre</guava.version>
 		<ucum.version>1.0.10</ucum.version>
 	</properties>
 
@@ -32,6 +33,11 @@
 	</repositories>
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>${guava.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.fhir</groupId>
 				<artifactId>ucum</artifactId>
@@ -113,6 +119,13 @@
 			<groupId>ca.uhn.hapi.fhir</groupId>
 			<artifactId>hapi-fhir-validation</artifactId>
 			<version>${hapi.fhir.version}</version>
+			<!-- OGNL is used by optional Thymeleaf narrative templates, not FHIR validation. -->
+			<exclusions>
+				<exclusion>
+					<groupId>ognl</groupId>
+					<artifactId>ognl</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/ca.uhn.hapi.fhir/hapi-fhir-caching-caffeine -->
 		<dependency>
