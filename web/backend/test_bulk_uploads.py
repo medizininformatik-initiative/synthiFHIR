@@ -18,6 +18,31 @@ from test_queue import QueueFixture
 
 
 class StreamingTests(QueueFixture):
+    def test_bulk_statistics_download_uses_saved_counts_and_recovers_old_manifest(self):
+        import package_statistics
+        for compressed in (False, True):
+            dataset = self.publish(resources=[{'resourceType': 'Location', 'id': 'same'},
+                                             {'resourceType': 'Location', 'id': 'same'}],
+                                   layout=5, compressed=compressed)
+            job, item, payload = datasets.resolve_dataset(dataset)
+            expected = package_statistics.report_path(payload).read_bytes()
+            original_payload = payload.read_bytes()
+            client = TestClient(app)
+            response = client.get(f'/api/datasets/{dataset}/statistics')
+            self.assertEqual(200, response.status_code)
+            self.assertEqual(expected, response.content)
+            self.assertEqual(2, item['statistics']['resources']['Location'])
+            self.assertEqual(1, item['statistics']['distinctIds']['Location'])
+            manifest_path = store.ROOT / 'jobs' / job['id'] / 'datasets.json'
+            saved = json.loads(manifest_path.read_text())
+            del saved['datasets'][0]['statistics']
+            manifest_path.write_text(json.dumps(saved))
+            with patch('bulk_ndjson.open_stream', side_effect=AssertionError('Do not scan payloads')):
+                recovered = client.get(f"/api/jobs/{job['id']}/artifacts").json()
+                self.assertEqual(item['statistics'], recovered['datasets'][0]['statistics'])
+                self.assertEqual(expected, client.get(f'/api/datasets/{dataset}/statistics').content)
+            self.assertEqual(original_payload, payload.read_bytes())
+
     def setUp(self):
         super().setUp()
         self.output = self.root / 'mass'

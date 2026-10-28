@@ -1,3 +1,4 @@
+import { ResourceStatistics, type Statistics } from './ResourceStatistics'
 import { datasetLabel, type DatasetContext } from './dataset-label'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Help } from './Help'
@@ -7,7 +8,7 @@ import { translate, type Language, type TextKey } from './i18n'
 
 type Report = { validationErrors: number; validationWarnings: number; status: string | null; issues: number; omissions: number; failures: number; derivations: number; selections: number; reasons: Record<string, number> }
 type Artifact = { id: string; path: string; size: number; report?: Report | null }
-type Dataset = { id: string; name: string; path?: string; error?: string; size?: number; inspection?: { patients: number; uniqueResources: number; resourceInstances: number; repeatedIds: number; missingIds: number; resourceCounts: Record<string, number>; inspectedFormats: string[] } }
+type Dataset = { statistics?: Statistics; id: string; name: string; path?: string; error?: string; size?: number; inspection?: { patients: number; uniqueResources: number; resourceInstances: number; repeatedIds: number; missingIds: number; resourceCounts: Record<string, number>; inspectedFormats: string[] } }
 type Manifest = { pending?: boolean; error?: string; datasets: Dataset[]; artifacts: Artifact[] }
 export function DatasetResults({ jobId, state, language, context, onUpload, inputKind, downloadAvailable, children }: { children?: ReactNode; downloadAvailable: boolean; inputKind?: string; jobId: string; state: string; language: Language; context: DatasetContext; onUpload: (ids: string[]) => void }) {
   const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) => translate(language, key, params)
@@ -81,11 +82,12 @@ export function DatasetResults({ jobId, state, language, context, onUpload, inpu
         {runDownloads}
       </div>
       {dataset.error && <p role="alert" className="mt-2 text-sm text-red-700">{dataset.error}</p>}
-      {dataset.inspection && <>
+      {!dataset.statistics && dataset.inspection && <>
         <p className="mt-2 text-sm">{t('app.datasets.counts', { patients: dataset.inspection.patients, resources: dataset.inspection.uniqueResources })}</p>
         <p className="mt-2 text-xs text-slate-500">{t('app.datasets.countHint', { formats: dataset.inspection.inspectedFormats.join(', '), repeated: dataset.inspection.repeatedIds, missing: dataset.inspection.missingIds })}</p>
         <details className="mt-3 text-sm"><summary className="cursor-pointer">{t('app.datasets.resources')}</summary><table className="mt-2 w-full"><tbody>{Object.entries(dataset.inspection.resourceCounts).map(([type, count]) => <tr key={type} className="border-t"><th className="py-1 text-left font-normal">{type}</th><td className="text-right">{count}</td></tr>)}</tbody></table></details>
       </>}
+      <ResourceStatistics datasetId={dataset.id} statistics={dataset.statistics} language={language}/>
     </section>)}
   </>, manifest.datasets.length > 0, <>
     <details className="text-sm"><summary className="cursor-pointer font-medium">{t('app.datasets.files', { count: manifest.artifacts.length })}</summary>

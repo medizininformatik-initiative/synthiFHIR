@@ -167,7 +167,8 @@ def publish(folder, snapshot):
         items.append({'id': folder.name + '.' + str(len(items)), 'name': path.stem,
                       'filename': path.name, 'kind': 'bulk', 'path': path.relative_to(destination).as_posix(),
                       'size': path.stat().st_size, 'sha256': store.digest(path),
-                      'inspection': {'patients': patient_count(manifest)}, 'files': []})
+                      'inspection': {'patients': patient_count(manifest)}, 'files': [],
+                      **({'statistics': manifest['statistics']} if 'statistics' in manifest else {})})
     from bulk_generation import atomic_json
     atomic_json(folder / 'datasets.json', {'schemaVersion': 1, 'datasets': items, 'artifacts': []})
 

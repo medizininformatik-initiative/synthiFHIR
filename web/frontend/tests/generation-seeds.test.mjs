@@ -6,6 +6,16 @@ const manual = { patientSeed: '-9223372036854775808', clinicianSeed: '42', singl
 test('manual seeds remain exact, and UI-only seed mode is excluded from the request', () => {
   assert.deepEqual(resolveGenerationSeeds({ ...manual, timestampSeeds: false }, 123), manual)
 })
+test('disabling timestamp mode preserves the displayed seeds on subsequent starts', () => {
+  const draft = { ...manual, timestampSeeds: true }
+  resolveGenerationSeeds(draft, 1793222166069)
+  draft.timestampSeeds = false
+  for (const timestamp of [1793223172670, 1793224172670]) {
+    assert.deepEqual(resolveGenerationSeeds(draft, timestamp), manual)
+    assert.equal(draft.patientSeed, manual.patientSeed)
+    assert.equal(draft.clinicianSeed, manual.clinicianSeed)
+  }
+})
 test('timestamp resolves at submission without modifying the editor draft', () => {
   const draft = { ...manual, timestampSeeds: true }
   const result = resolveGenerationSeeds(draft, 1791374400123)

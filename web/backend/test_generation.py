@@ -82,7 +82,7 @@ class GenerationTests(QueueFixture):
 
     @patch.object(store, 'validate_configuration', return_value={'formats': ['JSON'], 'validation': False, 'patientsPerFile': 1})
     def test_fixed_settings_are_snapshotted_and_repeat_preserves_them(self, validate):
-        settings = generation.normalize({'patientSeed': '-9223372036854775808', 'modules': ['diabetes']})
+        settings = generation.normalize({'patientSeed': '-9223372036854775808', 'clinicianSeed': '20260912', 'modules': ['diabetes']})
         request = {'source': 'synthea-generation', 'generation': settings, 'requestId': str(uuid4())}
         response = self.client.post('/api/jobs', json=request)
         self.assertEqual(201, response.status_code, response.text)
@@ -97,6 +97,11 @@ class GenerationTests(QueueFixture):
         repeated = store.create(loaded['source'], 'default', None if (loaded.get('generation') or {}).get('outputMode') == 'synthea' else loaded['configurationProperties'], generation_settings=loaded.get('generation'))
         self.assertEqual((folder / 'generation.json').read_bytes(), (store.ROOT / 'jobs' / repeated / 'generation.json').read_bytes())
         self.assertEqual(settings, store.editor_input(repeated)['generation'])
+        for saved_job in (job, repeated):
+            saved = json.loads((store.ROOT / 'jobs' / saved_job / 'generation.json').read_text())
+            args = generation.arguments(saved)
+            self.assertEqual(settings['patientSeed'], args[args.index('-s') + 1])
+            self.assertEqual(settings['clinicianSeed'], args[args.index('-cs') + 1])
 
     def test_loading_generation_does_not_start_a_run(self):
         job = store.create('synthea-generation', 'default', generation_settings={})

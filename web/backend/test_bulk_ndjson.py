@@ -114,7 +114,7 @@ class NdjsonTests(unittest.TestCase):
                 report = stats.report_path(target)
                 text = report.read_text()
                 self.assertIn('Total resources: 12', text)
-                self.assertIn('Transaction bundles: 2', text)
+                self.assertIn('Transport bundles: 2', text)
                 snapshot = ndjson.read_manifest(target)['statistics']
                 self.assertEqual(4, snapshot['resources']['Location'])
                 self.assertEqual({'Patient': 1, 'Location': 2, 'Medication': 1, 'Encounter': 0, 'Observation': 0, 'Organization': 1}, snapshot['distinctIds'])

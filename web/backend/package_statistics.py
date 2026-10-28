@@ -54,15 +54,15 @@ def report_path(package):
     return package.with_name(stem + '-statistics.txt')
 
 
-def write(package, data):
+def render(label, data, kind="Package"):
     resources = data['resources']
-    lines = ['Resource statistics', f'Package: {package.name}',
-             f'Transaction bundles: {data["bundles"]:,}', f'Patient resources: {resources.get("Patient", 0):,}',
+    lines = ['Resource statistics', f'{kind}: {label}',
+             f'Transport bundles: {data["bundles"]:,}', f'Patient resources: {resources.get("Patient", 0):,}',
              f'Total resources: {sum(resources.values()):,}', '',
-             'Resource counts include all occurrences in Bundle.entry.resource.',
-             'Distinct IDs are counted per resource type within this package; repeated IDs count once.',
+             'Resource counts include standalone resources and occurrences in Bundle.entry.resource.',
+             'Distinct IDs are counted per resource type within this dataset or package; repeated IDs count once.',
              'Resources without an ID contribute to occurrences only.',
-             'Transaction bundles are transport envelopes and are counted separately.',
+             'Bundles are transport envelopes and are counted separately.',
              'Main encounters: without partOf. Sub-encounters: with partOf (all nested levels).',
              'Contained resources are not counted as standalone resources.', '', 'RESOURCE TYPES']
     lines.extend(f'{kind}: {count:,}' for kind, count in sorted(resources.items()))
@@ -82,7 +82,11 @@ def write(package, data):
     lines.extend(['', 'ENCOUNTERS BY CONTACT LEVEL, CLASS AND HIERARCHY'])
     lines.extend(f'{level} | {code} ({system}) | {hierarchy}: {count:,}'
                  for level, system, code, hierarchy, count in data['contacts'])
+    return '\n'.join(lines) + '\n'
+
+
+def write(package, data):
     destination = report_path(package)
     pending = destination.with_name('.' + destination.name + '.partial')
-    pending.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    pending.write_text(render(package.name, data), encoding='utf-8')
     pending.replace(destination)

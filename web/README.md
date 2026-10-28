@@ -731,6 +731,20 @@ Directory names use a Europe/Berlin timestamp, a sanitized dataset name and the 
 Workbench runs publish reusable datasets in their named directory under
 `outputGlobal/`. Standard runs export one ZIP
 per dataset variant; bulk runs publish NDJSON files directly in the run directory, one file per subrun with the configured patient count (up to 10,000). The final subrun may contain fewer patients. Each NDJSON package has an English `-statistics.txt` report alongside it, listing resource occurrences, distinct resource IDs per resource type within the package, and encounters by class, parent/child relationship and contact level. Repeated IDs count once per type; resources without an ID are listed separately and contribute only to occurrence counts. Contained resources are excluded. Counts are collected while writing the package; reporting requires no additional pass over its contents. The interface shows a copyable result directory.
+
+Each dataset and bulk package exposes **Resource statistics** and a separate
+**Download statistics** link in its run results. The resource table distinguishes
+occurrences, distinct IDs and missing IDs; encounter rows show contact level,
+class and hierarchy. Counts apply to the selected dataset or package, not the
+whole series. IDs shared between packages must not be added as if they were unique.
+
+Standard runs include `resource-statistics.txt` in their dataset ZIP and full-run
+ZIP. Statistics inspect one output representation per folder, so simultaneous
+JSON, NDJSON and XML exports do not multiply the counts. Bulk downloads retain
+pure NDJSON or gzip-compressed NDJSON; download their text statistics separately.
+Both the interface and text download use the same saved counters. Older results
+without saved counters explicitly show that statistics are unavailable; existing
+bulk checkpoints with statistics can be displayed without rereading their payloads.
 Inputs, logs, reports and intermediate files remain in the internal Workbench
 volume. Standard-run downloads and reports remain available in the interface.
 Deleting a run also removes its exported datasets and result directory. Cleaning up a run retains its exported datasets.

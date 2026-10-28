@@ -76,6 +76,21 @@ with tempfile.TemporaryDirectory(prefix='workbook-upload-') as directory:
             with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
                 assert archive.namelist()
                 assert not any('Konvertierungsoptionen_' in name for name in archive.namelist())
+        import package_statistics
+        expected = package_statistics.Statistics()
+        for path in sorted((csv_folder / 'output').glob('run-*/fhir/*.json')):
+            bundle = json.loads(path.read_text())
+            assert bundle['resourceType'] == 'Bundle'
+            expected.add(bundle)
+        assert one['statistics'] == expected.snapshot(), (one['statistics'], expected.snapshot())
+        text = client.get(f"/api/datasets/{one['id']}/statistics")
+        assert text.status_code == 200
+        with zipfile.ZipFile(csv_folder / 'dataset-0.zip') as archive:
+            assert archive.read('resource-statistics.txt') == text.content
+        with zipfile.ZipFile(csv_folder / 'result.zip') as archive:
+            reports = [name for name in archive.namelist() if name.endswith('/resource-statistics.txt')]
+            assert len(reports) == 1, reports
+            assert archive.read(reports[0]) == text.content
         report = next(file for file in manifest['artifacts'] if file['report'])
         assert client.get(f"/api/jobs/{csv_job['id']}/artifacts/{report['id']}").status_code == 200
         print('PASS: one configured dataset, embedded CSV options ignored, no double-counted NDJSON and dataset download')
