@@ -149,6 +149,10 @@ ontology documents recursively under `elastic/`, including `elastic/content/`,
 fails clearly when no ontology nodes are found, and skips empty update files.
 See the [upstream release](https://github.com/medizininformatik-initiative/dataportal-availibility-updater/releases/tag/v0.4.2).
 
+Renovate updates local image overrides in `web/compose.yml`. The pinned files
+under `upstream/` are excluded from automated dependency edits; update them
+together with their source revision and checksums when refreshing the upstream snapshot.
+
 ## Verification
 
 `python3 web/integration/test_compose_profiles.py` checks all eight Compose-profile

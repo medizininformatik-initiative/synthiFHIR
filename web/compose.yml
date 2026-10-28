@@ -131,6 +131,7 @@ services:
       retries: 12
     mem_limit: 1g
   dataportal-elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.5
     extends:
       file: deployment/upstream/data-portal/backend/docker-compose.yml
       service: dataportal-elastic
