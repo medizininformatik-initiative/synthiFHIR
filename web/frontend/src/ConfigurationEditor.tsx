@@ -22,6 +22,7 @@ import {
   resourceEnabled,
   resourceNavigationStatus,
   resourceOptions,
+  dependencyValues,
   previewIdentifier,
   identifierNumber,
   type Configuration,
@@ -40,6 +41,11 @@ const groups = [
 const resources = groups.flatMap((group) =>
   contract.resources.filter((r) => r.group === group.id)
 )
+const editorResources = resources.filter(r => r.id !== 'Location')
+const contactSupport = [
+  { id: 'Organization', labelKey: 'app.config.organization' },
+  { id: 'Location', labelKey: 'resource.Location.label' }
+]
 const identifierChoices = [...new Map(resources.filter(r => r.identifierEligible).map(r => [
   r.identifierSelector ?? r.resourceType, r
 ])).entries()].flatMap(([selector, r]) => [
@@ -98,8 +104,10 @@ function OptionControl({
       labels: deps
         .map((d) => {
           const source = options.find((o) => o.id === d.option)!
-          const choice = source.choiceLabelKeys?.[String(d.equals)]
-          return `${t(source.labelKey)}: ${choice ? t(choice) : t(d.equals ? 'app.config.on' : 'app.config.off')}`
+          return `${t(source.labelKey)}: ${dependencyValues(d).map(value => {
+            const choice = source.choiceLabelKeys?.[String(value)]
+            return choice ? t(choice) : t(value ? 'app.config.on' : 'app.config.off')
+          }).join(' / ')}`
         })
         .join(' · ')
     })
@@ -459,7 +467,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 .getElementById(`tab-${contract.sections[next].id}`)
                 ?.focus()
             }}
-            className={`rounded-lg border px-3 py-2 text-sm font-medium shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${tab === section.id ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-teal-700 hover:bg-teal-50 hover:text-teal-900'}`}
+            className={`rounded-lg border px-3 py-1 min-h-[var(--control-height)] text-sm font-medium shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${tab === section.id ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-teal-700 hover:bg-teal-50 hover:text-teal-900'}`}
           >
             {t(section.labelKey)}
           </button>
@@ -488,14 +496,14 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 {t('app.config.anchors')}
               </p>
               <div className="flex w-max flex-col items-stretch gap-2 pb-16">
-                {resources.flatMap(r => [
-                  { id: r.id, labelKey: r.labelKey, organization: false },
-                  ...(r.id === 'Encounter' ? [{ id: 'Organization', labelKey: 'app.config.organization', organization: true }] : [])
+                {editorResources.flatMap(r => [
+                  { id: r.id, labelKey: r.labelKey, nested: false },
+                  ...(r.id === 'Encounter' ? contactSupport.map(child => ({ ...child, nested: true })) : [])
                 ]).map((r) => {
                   const status = resourceNavigationStatus(r.id, config.values)
-                  const round = r.organization || `resource.${r.id}.mode` in config.values
+                  const round = r.id === 'Organization' || `resource.${r.id}.mode` in config.values
                   const active = status === 'generated' || status === 'referenced'
-                  const modeOption = options.find((option) => option.id === (r.organization ? 'resource.Encounter.stationServiceProvider' : `resource.${r.id}.mode`))
+                  const modeOption = options.find((option) => option.id === (r.id === 'Organization' ? 'resource.Encounter.stationServiceProvider' : `resource.${r.id}.mode`))
                   const selectedLabel = status !== 'parentDisabled' ? modeOption?.choiceLabelKeys?.[String(config.values[modeOption.id])] : undefined
                   const description = t(selectedLabel ?? {
                     generated: 'app.config.resourceStatus.generated',
@@ -504,9 +512,9 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                     parentDisabled: 'app.config.resourceStatus.parentDisabled'
                   }[status])
                   return (
-                    <a key={r.id} href={r.organization ? '#resource.Encounter.stationServiceProvider' : `#resource-${r.id}`}
+                    <a key={r.id} href={`#resource-${r.id}`}
                       aria-describedby={`resource-status-${r.id}`}
-                      className={`group relative flex items-center gap-2 rounded px-2 py-1 text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-700 ${r.organization ? 'ml-5 text-xs' : 'text-sm'}`}>
+                      className={`group relative flex items-center gap-2 rounded px-2 py-1 text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-700 ${r.nested ? 'ml-5 text-xs' : 'text-sm'}`}>
                       <span className="group/status relative h-2.5 w-2.5 shrink-0">
                         <span aria-hidden="true" className={`flex h-2.5 w-2.5 items-center justify-center border ${round ? 'rounded-full' : 'rounded-sm'} ${status === 'generated' ? 'border-teal-700 bg-teal-700' : status === 'referenced' ? 'border-teal-700' : 'border-slate-400 bg-slate-100'}`}>
                           {round && status === 'referenced' && <span className="h-1 w-1 rounded-full bg-teal-700" />}
@@ -524,9 +532,9 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
               </div>
             </nav>
             <div>
-              {resources.map((r, index) => (
+              {editorResources.map((r, index) => (
                 <div key={r.id}>
-                  {(index === 0 || resources[index - 1].group !== r.group) && (
+                  {(index === 0 || editorResources[index - 1].group !== r.group) && (
                     <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-teal-800">
                       {t(groups.find((g) => g.id === r.group)!.key)}
                     </h3>
@@ -560,6 +568,16 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                         update={update}
                         t={t}
                       />
+                    ))}
+                    {r.id === 'Encounter' && contactSupport.map(child => (
+                      <section key={child.id} id={`resource-${child.id}`} className="mt-5 scroll-mt-6 rounded-lg border border-slate-200 p-4">
+                        <h4 className="mb-2 text-base font-semibold">{t(child.labelKey)}
+                          <span className="ml-3 text-xs font-normal text-slate-500">{child.id}</span>
+                        </h4>
+                        {resourceOptions(child.id).map(option => (
+                          <OptionControl key={option.id} option={option} config={config} update={update} t={t} />
+                        ))}
+                      </section>
                     ))}
                   </section>
                 </div>
@@ -881,7 +899,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                       onChange={(e) =>
                         updateRule(rule.id, { system: e.target.value })
                       }
-                      className="h-10 w-full min-w-0 rounded-lg border border-slate-300 p-2 placeholder:text-slate-400 focus:placeholder:text-transparent"
+                      className="h-[var(--control-height)] w-full min-w-0 rounded-lg border border-slate-300 p-2 placeholder:text-slate-400 focus:placeholder:text-transparent"
                     />
                   </label>
                   <IdentifierPatternControl
@@ -897,14 +915,14 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <div className="flex min-w-0 flex-col gap-2 text-sm">
                     <span className="flex min-h-7 items-center gap-1"><label htmlFor={`identifier-use-${rule.id}`}>{t('identifier.use')}</label><Help text={t('identifier.useHelp')} t={t}/></span>
-                    <select id={`identifier-use-${rule.id}`} className="h-10 w-full min-w-0 rounded-lg border border-slate-300 p-2" value={rule.use ?? ''} onChange={e => updateRule(rule.id, { use: e.target.value })}>
+                    <select id={`identifier-use-${rule.id}`} className="h-[var(--control-height)] w-full min-w-0 rounded-lg border border-slate-300 p-2" value={rule.use ?? ''} onChange={e => updateRule(rule.id, { use: e.target.value })}>
                       <option value="">{t('identifier.unspecified')}</option>
                       {identifierBindings.use.map(value => <option key={value.code} value={value.code}>{value.code} — {value.display}</option>)}
                     </select>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2 text-sm">
                     <span className="flex min-h-7 items-center gap-1"><label htmlFor={`identifier-type-text-${rule.id}`}>{t('identifier.type_text')}</label><Help text={t('identifier.typeTextHelp')} t={t}/></span>
-                    <input id={`identifier-type-text-${rule.id}`} className="h-10 w-full min-w-0 rounded-lg border border-slate-300 p-2" value={rule.typeText ?? ''} onChange={e => updateRule(rule.id, { typeText: e.target.value })}/>
+                    <input id={`identifier-type-text-${rule.id}`} className="h-[var(--control-height)] w-full min-w-0 rounded-lg border border-slate-300 p-2" value={rule.typeText ?? ''} onChange={e => updateRule(rule.id, { typeText: e.target.value })}/>
                   </div>
                 </div>
                 <div className="mt-4 space-y-3">
@@ -916,7 +934,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                         <option value="">{t('identifier.chooseType')}</option>
                         {identifierBindings.types.map(item => <option key={`${item.system}|${item.code}`} value={`${item.system}|${item.code}`}>{item.code} — {t('identifier.typeLabel.' + item.code)}</option>)}
                       </select>
-                      <div className="grid gap-3 md:grid-cols-3">{(['system', 'code', 'display'] as const).map(field => <label key={field} className="flex min-w-0 flex-col gap-1 text-sm">{t(`identifier.coding.${field}`)}<input className="h-10 w-full min-w-0 rounded-lg border border-slate-300 p-2" value={coding[field] ?? ''} onChange={e => updateCoding({ ...coding, [field]: e.target.value })}/></label>)}</div>
+                      <div className="grid gap-3 md:grid-cols-3">{(['system', 'code', 'display'] as const).map(field => <label key={field} className="flex min-w-0 flex-col gap-1 text-sm">{t(`identifier.coding.${field}`)}<input className="h-[var(--control-height)] w-full min-w-0 rounded-lg border border-slate-300 p-2" value={coding[field] ?? ''} onChange={e => updateCoding({ ...coding, [field]: e.target.value })}/></label>)}</div>
                       <Button variant="outline" onClick={() => updateRule(rule.id, { typeCodings: rule.typeCodings!.filter((_, i) => i !== codingIndex) })}>{t('app.config.remove')}</Button>
                     </div>
                   })}

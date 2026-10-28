@@ -2,7 +2,7 @@ import de from '../../catalog/options/de.json' with { type: 'json' }
 import en from '../../catalog/options/en.json' with { type: 'json' }
 import {
   identifierNumber, contract, options, darFields, darResource, defaults, normalize, problems,
-  optionEnabled, unmetDependencies, resourceEnabled,
+  optionEnabled, unmetDependencies, resourceEnabled, dependencyValues,
   type Configuration, type Option, type Value, type Rule
 } from './configuration.ts'
 
@@ -73,8 +73,8 @@ export function exportPropertiesConfiguration(input: Configuration, language: 'd
       const deps = [...(option.enabledWhen ?? []), ...(choiceDeps ?? [])]
       const labels = deps.map(d => {
         const source = options.find(o => o.id === d.option)!
-        return `${t(source.labelKey)}: ${source.choiceLabelKeys?.[String(d.equals)]
-          ? t(source.choiceLabelKeys[String(d.equals)]) : String(d.equals)}`
+        return `${t(source.labelKey)}: ${dependencyValues(d).map(value => source.choiceLabelKeys?.[String(value)]
+          ? t(source.choiceLabelKeys[String(value)]) : String(value)).join(' / ')}`
       }).join('; ')
       comment(t('app.config.requires').replace('{labels}', labels))
     }

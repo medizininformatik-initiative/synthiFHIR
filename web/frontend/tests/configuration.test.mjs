@@ -140,7 +140,7 @@ test('rule IDs are unique and identifier rules validate before saving', () => {
 })
 
 test('resource groups cover each resource option exactly once', () => {
-  const ids = contract.resources.flatMap((r) =>
+  const ids = [...contract.resources, { id: 'Organization' }].flatMap((r) =>
     resourceOptions(r.id).map((o) => o.id)
   )
   assert.equal(new Set(ids).size, ids.length)
@@ -343,4 +343,42 @@ test('organization navigation follows the encounter provider setting', () => {
     assert.equal(resourceNavigationStatus('Organization', config.values), 'parentDisabled')
     config.values['resource.Encounter.enabled'] = true
   }
+})
+
+test('all support identity controls are reachable in the resource editor', () => {
+  assert.ok(resourceOptions('Organization').some(o => o.id === 'resource.Organization.identity'))
+  assert.ok(resourceOptions('Organization').some(o => o.id === 'resource.Encounter.stationServiceProvider'))
+  assert.ok(resourceOptions('Location').some(o => o.id === 'resource.Encounter.stationLocation'))
+  assert.ok(!resourceOptions('Encounter').some(o => o.id.includes('stationLocation') || o.id.includes('stationServiceProvider')))
+  for (const type of ['Location', 'Medication'])
+    assert.ok(resourceOptions(type).some(o => o.id === `resource.${type}.identity`))
+})
+
+
+test('location dependencies retain stored choices and restore them for both output modes', () => {
+  const config = defaults()
+  config.values['resource.Location.identity'] = 'separate'
+  config.values['resource.Encounter.stationLocation'] = false
+  config.values['resource.Location.mode'] = 'neither'
+  for (const id of ['resource.Location.identity', 'resource.Encounter.stationLocation', 'resource.Location.existingReference', 'resource.Location.description'])
+    assert.equal(optionEnabled(id, config.values), false, id)
+  for (const mode of ['generate-reference', 'reference-only']) {
+    config.values['resource.Location.mode'] = mode
+    assert.equal(optionEnabled('resource.Encounter.stationLocation', config.values), true)
+    assert.equal(optionEnabled('resource.Location.identity', config.values), true)
+    assert.equal(config.values['resource.Encounter.stationLocation'], false)
+    assert.equal(config.values['resource.Location.identity'], 'separate')
+  }
+  config.values['resource.Encounter.enabled'] = false
+  assert.equal(optionEnabled('resource.Encounter.stationLocation', config.values), false)
+})
+
+test('organization identity follows the provider mode and its encounter prerequisite', () => {
+  const config = defaults()
+  for (const mode of ['none', 'generate-reference', 'reference-only', 'contained']) {
+    config.values['resource.Encounter.stationServiceProvider'] = mode
+    assert.equal(optionEnabled('resource.Organization.identity', config.values), mode !== 'none')
+  }
+  config.values['resource.Encounter.enabled'] = false
+  assert.equal(optionEnabled('resource.Organization.identity', config.values), false)
 })

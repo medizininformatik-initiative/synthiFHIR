@@ -1,7 +1,6 @@
 """Check selected contact hierarchy and independently derived location values."""
-import re
 from check_contact_selection import checked_contacts, contact_selected
-from check_output_selection import named_id, descriptive_reference
+from check_output_selection import identity_key, place_id, descriptive_reference
 
 
 def check_movements(source, target, report):
@@ -10,20 +9,18 @@ def check_movements(source, target, report):
     resources = [e['resource'] for e in target['entry']]
     encounters = {r['id']: r for r in resources if r['resourceType'] == 'Encounter'}
     locations = [r for r in resources if r['resourceType'] == 'Location']
-    # DIZ identity is derived from the converted patient identifier by the input contract.
-    pid = report.get('outputPatient', report['sourcePatient'].replace('_', '-'))
-    diz = re.sub('[^A-Z]', '', pid.upper())
     expected_locations = {}
     for contact in contacts.values():
         row = contact.get('row')
         wanted = []
         if row:
-            path, parent = diz + '|' + row['Fachabteilung'], None
+            path, parent = identity_key(row['Fachabteilung']), None
             for kind, name in zip(('wa', 'ro', 'bd'), [row['Station'], row['Zimmer'], row['Bett']]):
                 if not name:
                     continue
-                path += '|' + kind + '|' + name
-                identifier = named_id('Location', diz + '|Location|' + path)
+                path += identity_key(kind, name)
+                if kind == 'wa' and str(options.get('ENCOUNTER_STATION_LOCATION', True)).lower() == 'false': continue
+                identifier = place_id('Location', identity_key(path, parent), contact['id'], options)
                 expected_locations[identifier] = (kind, name, parent)
                 reference = descriptive_reference('Location', identifier, name, options)
                 if reference:

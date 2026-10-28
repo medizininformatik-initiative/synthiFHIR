@@ -173,4 +173,22 @@ public class ContractConfigurationTest {
             assertEquals("", options.getValue(ConverterOptions.StringOption.SYNTHEA_VERSION_OUTPUT));
         }
     }
+    @Test public void supportDependenciesRetainInactiveChoicesAndAllowReferenceOnly() {
+        var disabled = ContractConfiguration.parse(VERSION + "LOCATION_MODE=neither\nLOCATION_IDENTITY=separate\n"
+                + "ENCOUNTER_STATION_LOCATION=false\nENCOUNTER_STATION_SERVICE_PROVIDER=none\nORGANIZATION_IDENTITY=separate\n");
+        assertTrue(disabled.effective("resource.Location.identity").isEmpty());
+        assertTrue(disabled.effective("resource.Encounter.stationLocation").isEmpty());
+        assertTrue(disabled.effective("resource.Organization.identity").isEmpty());
+        assertEquals("separate", disabled.stored("resource.Location.identity").asText());
+        assertFalse(disabled.stored("resource.Encounter.stationLocation").asBoolean());
+        for (String mode : List.of("generate-reference", "reference-only")) {
+            var enabled = ContractConfiguration.parse(VERSION + "LOCATION_MODE=" + mode + "\nENCOUNTER_STATION_LOCATION=false\n");
+            assertFalse(enabled.effective("resource.Encounter.stationLocation").orElseThrow().asBoolean());
+            assertTrue(enabled.effective("resource.Location.identity").isPresent());
+        }
+        var noContact = ContractConfiguration.parse(VERSION + "ENCOUNTER_ENABLED=false\n");
+        assertTrue(noContact.effective("resource.Organization.identity").isEmpty());
+        assertTrue(noContact.effective("resource.Encounter.stationLocation").isEmpty());
+    }
+
 }

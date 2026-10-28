@@ -42,6 +42,7 @@ import de.uni_leipzig.life.synthifhir.ContactIndex.Level;
 import de.uni_leipzig.life.synthifhir.Converter;
 import de.uni_leipzig.life.synthifhir.ConverterOptions;
 import de.uni_leipzig.life.synthifhir.ConverterResult;
+import de.uni_leipzig.life.synthifhir.SupportResourceIdentity;
 import de.uni_leipzig.life.synthifhir.TableColumnIdentifier;
 
 /**
@@ -125,7 +126,7 @@ public class EncounterConverter extends Converter {
 
     private void locations(Encounter encounter, String department, List<Resource> resources) throws Exception {
         Location parent = null;
-        String path = getDIZId() + "|" + Objects.toString(department, "");
+        String path = SupportResourceIdentity.key(department);
         String station = value(Station);
         var configuration = options.configuration();
         String providerMode = configuration == null ? "none" : configuration.effective("resource.Encounter.stationServiceProvider")
@@ -134,7 +135,7 @@ public class EncounterConverter extends Converter {
                 .map(v -> v.asBoolean()).orElse(true);
         if (station != null && !providerMode.equals("none")) {
             Organization organization = new Organization();
-            organization.setId(ClinicalValues.resourceId(getDIZId(), "Organization", path + "|wa|" + station));
+            organization.setId(SupportResourceIdentity.place(options, "Organization", path + SupportResourceIdentity.key("wa", station), encounter.getId()));
             organization.setName(station).setActive(true);
             String reference = "Organization/" + organization.getIdElement().getIdPart();
             if (providerMode.equals("contained")) {
@@ -148,10 +149,11 @@ public class EncounterConverter extends Converter {
             String name = value(field);
             if (name == null) continue;
             String type = types.get(field);
-            path += "|" + type + "|" + name;
+            path += SupportResourceIdentity.key(type, name);
             if (field == Station && !stationLocation) continue;
             Location location = new Location();
-            location.setId(ClinicalValues.resourceId(getDIZId(), "Location", path));
+            location.setId(SupportResourceIdentity.place(options, "Location",
+                    SupportResourceIdentity.key(path, parent == null ? "" : "Location/" + parent.getId()), encounter.getId()));
             location.setName(name).setStatus(LocationStatus.ACTIVE);
             location.setPhysicalType(new CodeableConcept(new Coding("http://terminology.hl7.org/CodeSystem/location-physical-type", type, null)));
             if (parent != null) location.setPartOf(new Reference("Location/" + parent.getId()));
