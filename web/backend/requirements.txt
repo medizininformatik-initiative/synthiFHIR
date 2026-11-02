@@ -1,8 +1,8 @@
 # Versions used by the prototype and its API tests.
 fastapi==0.142.2
 uvicorn==0.54.0
-pydantic==2.14.1
-pydantic-core==2.50.1
+pydantic==2.14.2
+pydantic-core==2.50.2
 starlette==1.7.0
 annotated-doc==0.0.5
 annotated-types==0.8.0
