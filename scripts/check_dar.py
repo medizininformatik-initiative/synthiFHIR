@@ -41,7 +41,7 @@ def checked_original_dar(source, target, report):
                     code = options[property_name]
             if resource['resourceType'] == 'Observation':
                 kind = resource_key(original)
-                if kind == 'OBSERVATION' or identifier.startswith('VitalSigns.') != (kind == 'OBSERVATION_VITAL_SIGNS'): continue
+                if kind == 'OBSERVATION_OTHER' or identifier.startswith('VitalSigns.') != (kind == 'OBSERVATION_VITAL_SIGNS'): continue
             if code == 'unchanged': continue
             if code.startswith('!dar:'): code = code[5:]
             only_missing = str(options.get(property_name + '_ONLY_WHEN_MISSING', False)).lower() == 'true'

@@ -149,7 +149,7 @@ export function resourceEnabled(
       : resource === 'VitalSigns'
         ? ['Observation.vitalSigns']
         : resource === 'Observation'
-          ? ['Observation.laboratory', 'Observation.vitalSigns']
+          ? ['Observation.laboratory', 'Observation.vitalSigns', 'Observation.other']
           : [resource]
   return names.some((name) => values[`resource.${name}.enabled`] === true)
 }

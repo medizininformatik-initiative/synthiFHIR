@@ -11,7 +11,7 @@ import org.hl7.fhir.r4.model.*;
 /** Resource selection and descriptive references, applied after internal conversion. */
 public final class ResourceOutputPolicy {
     private static final Set<String> BOOLEAN_TYPES = Set.of("Condition", "Procedure", "Observation.laboratory",
-            "Observation.vitalSigns", "MedicationRequest", "MedicationAdministration", "MedicationStatement",
+            "Observation.vitalSigns", "Observation.other", "MedicationRequest", "MedicationAdministration", "MedicationStatement",
             "Immunization", "DiagnosticReport", "CarePlan", "DocumentReference", "Consent");
     private final ContractConfiguration configuration;
     private final Map<String, Resource> potential = new LinkedHashMap<>();
@@ -42,7 +42,7 @@ public final class ResourceOutputPolicy {
         if (configuration == null) return true;
         if (replaced.contains(resource.fhirType() + "/" + resource.getIdElement().getIdPart())) return false;
         String type = resource instanceof Observation ? ClinicalEncounterAssignment.optionResource(resource) : resource.fhirType();
-        if (type == null) return true;
+        if (type == null) type = "Observation.other";
         if (type.equals("Location") || type.equals("Medication")) return mode(type).equals("generate-reference");
         return !BOOLEAN_TYPES.contains(type) || enabled("resource." + type + ".enabled");
     }

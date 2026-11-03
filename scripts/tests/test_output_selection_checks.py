@@ -47,8 +47,9 @@ class OutputSelectionChecks(unittest.TestCase):
                          [{'coding': [{'system': 'urn:custom', 'code': 'laboratory'}]}]):
             resource = {'resourceType': 'Observation', 'id': 'o', 'category': category,
                         'valueQuantity': {'value': 1, 'system': 'http://unitsofmeasure.org', 'code': 'mg', 'unit': 'entered'}}
-            self.assertEqual('OBSERVATION', resource_key(resource))
+            self.assertEqual('OBSERVATION_OTHER', resource_key(resource))
             self.assertTrue(selected(resource, options))
+            self.assertFalse(selected(resource, {**options, 'OBSERVATION_OTHER_ENABLED': 'false'}))
             self.assertEqual([resource], checked_observation_units([resource], options, {'o': resource}))
             from check_dar import checked_original_dar
             target = {'entry': [{'resource': resource}]}

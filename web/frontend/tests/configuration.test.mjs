@@ -321,6 +321,12 @@ test('navigation status uses effective resource selections without mutating them
   config.values['resource.Observation.laboratory.enabled'] = false
   assert.equal(resourceNavigationStatus('Observation.laboratory', config.values), 'disabled')
   assert.equal(resourceNavigationStatus('Observation.vitalSigns', config.values), 'generated')
+  config.values['resource.Observation.vitalSigns.enabled'] = false
+  assert.equal(resourceNavigationStatus('Observation.other', config.values), 'generated')
+  assert.equal(resourceEnabled('Observation', config.values), true)
+  config.values['resource.Observation.other.enabled'] = false
+  assert.equal(resourceEnabled('Observation', config.values), false)
+  assert.equal(resourceNavigationStatus('Observation.other', config.values), 'disabled')
   config.values['resource.Encounter.enabled'] = false
   assert.equal(resourceNavigationStatus('Encounter.inpatient', config.values), 'parentDisabled')
   assert.equal(config.values['resource.Encounter.inpatient.enabled'], true)

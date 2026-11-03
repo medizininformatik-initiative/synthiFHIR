@@ -139,7 +139,7 @@ public class SelectionDarWorkflowTest {
         String transformations = "MEDICATION_REQUEST_TREATMENT=replace-administration\nMEDICATION_ADMINISTRATION_TREATMENT=add-statement\n";
         var derivedBaseline = convert(transformations);
         var output = convert(transformations + "CONDITION_ENABLED=false\nPROCEDURE_ENABLED=false\nOBSERVATION_LABORATORY_ENABLED=false\n"
-                + "OBSERVATION_VITAL_SIGNS_ENABLED=false\nMEDICATION_REQUEST_ENABLED=false\n"
+                + "OBSERVATION_VITAL_SIGNS_ENABLED=false\nOBSERVATION_OTHER_ENABLED=false\nMEDICATION_REQUEST_ENABLED=false\n"
                 + "MEDICATION_ADMINISTRATION_ENABLED=false\nMEDICATION_STATEMENT_ENABLED=false\n"
                 + "IMMUNIZATION_ENABLED=false\nDIAGNOSTIC_REPORT_ENABLED=false\nCARE_PLAN_ENABLED=false\n"
                 + "DOCUMENT_REFERENCE_ENABLED=false\nCONSENT_ENABLED=false\n"
@@ -147,15 +147,7 @@ public class SelectionDarWorkflowTest {
         for (String type : types) {
             if (List.of("Condition", "Procedure", "Observation", "MedicationRequest", "MedicationAdministration", "MedicationStatement").contains(type))
                 assertTrue("Fixture must exercise " + type, !ids(baseline, type).isEmpty() || !ids(derivedBaseline, type).isEmpty());
-            if (type.equals("Observation")) {
-                for (String key : ids(output, type)) {
-                    Observation observation = (Observation)output.get(key);
-                    assertFalse(observation.getCategory().stream().flatMap(c -> c.getCoding().stream()).anyMatch(c ->
-                            "http://terminology.hl7.org/CodeSystem/observation-category".equals(c.getSystem())
-                            && List.of("laboratory", "vital-signs").contains(c.getCode())));
-                    assertTrue(baseline.get(key).equalsDeep(observation));
-                }
-            } else assertTrue(type, ids(output, type).isEmpty());
+            assertTrue(type, ids(output, type).isEmpty());
         }
         for (Resource resource : output.values()) for (Reference ref : references(resource))
             if (ref.hasReference() && baseline.containsKey(ref.getReference()))
