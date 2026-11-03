@@ -123,6 +123,13 @@
       "labelKey": "resource.Observation.vitalSigns.label"
     },
     {
+      "id": "Observation.other",
+      "resourceType": "Observation",
+      "group": "clinical",
+      "identifierEligible": true,
+      "labelKey": "resource.Observation.other.label"
+    },
+    {
       "id": "Medication",
       "resourceType": "Medication",
       "group": "medication",
@@ -535,6 +542,17 @@
       "labelKey": "option.resource.Observation.vitalSigns.enabled.label",
       "helpKey": "option.resource.Observation.vitalSigns.enabled.help",
       "propertyName": "OBSERVATION_VITAL_SIGNS_ENABLED"
+    },
+    {
+      "id": "resource.Observation.other.enabled",
+      "section": "resources",
+      "type": "boolean",
+      "default": true,
+      "status": "agreed",
+      "control": "checkbox",
+      "labelKey": "option.resource.Observation.other.enabled.label",
+      "helpKey": "option.resource.Observation.other.enabled.help",
+      "propertyName": "OBSERVATION_OTHER_ENABLED"
     },
     {
       "id": "resource.Observation.vitalSigns.ucumCodeInUnit",

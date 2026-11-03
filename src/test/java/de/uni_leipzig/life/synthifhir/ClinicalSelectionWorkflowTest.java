@@ -128,6 +128,22 @@ public class ClinicalSelectionWorkflowTest {
             for (String key : output.keySet()) if (!key.equals(reportKey)) assertTrue(key, baseline.get(key).equalsDeep(output.get(key)));
         }
     }
+    @Test public void patientOnlySelectionEmitsOnlyPatientsInBundleAndNdjson() throws Exception {
+        table(TableIdentifier.Klinische_Dokumentation, List.of("vital-signs", "social-history", "survey", "").stream()
+                .map(category -> Map.of("Patient-ID", "p1", "Fall-Nr", "1", "Untersuchung ID", "obs-" + category,
+                        "Kategorie", category, "Untersuchungscode", "8867-4", "Wert", "70")).toList());
+        var baseline = run("");
+        assertEquals(5, baseline.values().stream().filter(Observation.class::isInstance).count());
+        String settings = "ENCOUNTER_ENABLED=false\nCONDITION_ENABLED=false\nPROCEDURE_ENABLED=false\n"
+                + "OBSERVATION_LABORATORY_ENABLED=false\nOBSERVATION_VITAL_SIGNS_ENABLED=false\nOBSERVATION_OTHER_ENABLED=false\n"
+                + "LOCATION_MODE=neither\nMEDICATION_MODE=neither\nMEDICATION_REQUEST_ENABLED=false\n"
+                + "MEDICATION_ADMINISTRATION_ENABLED=false\nMEDICATION_STATEMENT_ENABLED=false\n"
+                + "IMMUNIZATION_ENABLED=false\nDIAGNOSTIC_REPORT_ENABLED=false\nCARE_PLAN_ENABLED=false\n"
+                + "DOCUMENT_REFERENCE_ENABLED=false\nCONSENT_ENABLED=false\n";
+        assertEquals(baseline.keySet().stream().filter(key -> key.startsWith("Patient/")).toList(),
+                new ArrayList<>(run(settings).keySet()));
+    }
+
     @Test public void attachmentDarRetainsDataInMissingModeAndRemovesPayloadMetadataOnOverwrite() throws Exception {
         var baseline = run("");
         String key = baseline.keySet().stream().filter(k -> k.startsWith("DocumentReference/")).findFirst().orElseThrow();
@@ -258,6 +274,10 @@ public class ClinicalSelectionWorkflowTest {
                 table(table, row);
             }
             var baseline = run("");
+            var excluded = run("OBSERVATION_OTHER_ENABLED=false\n");
+            assertFalse(excluded.values().stream().anyMatch(Observation.class::isInstance));
+            var report = (DiagnosticReport)excluded.values().stream().filter(DiagnosticReport.class::isInstance).findFirst().orElseThrow();
+            assertFalse(report.hasResult());
             String rules = "REFERENCE_OBSERVATION_LABORATORY_ENCOUNTER=none\n"
                     + "REFERENCE_OBSERVATION_VITAL_SIGNS_ENCOUNTER=none\n"
                     + "DAR_LABORATORY_VALUE_X_NUMERIC_MEASUREMENT=masked\n"

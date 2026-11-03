@@ -16,7 +16,7 @@ def resource_key(resource):
                       if c.get('system') == 'http://terminology.hl7.org/CodeSystem/observation-category'}
         if 'vital-signs' in categories: return 'OBSERVATION_VITAL_SIGNS'
         if 'laboratory' in categories: return 'OBSERVATION_LABORATORY'
-        return 'OBSERVATION'
+        return 'OBSERVATION_OTHER'
     return re.sub(r'(?<!^)(?=[A-Z])', '_', kind).upper()
 
 

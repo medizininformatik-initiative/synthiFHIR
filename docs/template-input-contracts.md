@@ -110,9 +110,11 @@ and code-system fields are omitted. An entered category produces its correspondi
 observation-category coding.
 Laboratory-specific options apply to the explicit `laboratory` category, and
 vital-sign options to `vital-signs`, both in the HL7 observation-category system.
-Observations with an empty or other category retain their input contact reference
-and are unaffected by either group's output selection, DAR and unit rules.
-General output rules still apply.
+The **Other Observations** group includes all remaining Observations, such as
+surveys, social history and entries without a category. It is enabled by default.
+These Observations retain their input contact reference and measurement values,
+subject to general output rules. To output only patients, select Patient and
+disable all other resource groups, including all three Observation groups.
 
 ## Other clinical fields
 

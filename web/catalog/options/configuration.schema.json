@@ -146,6 +146,12 @@
           "default": true,
           "type": "boolean"
         },
+        "resource.Observation.other.enabled": {
+          "title": "Generate other Observations",
+          "description": "Includes Observations outside the laboratory and vital signs categories, including surveys, social history and Observations without a category.",
+          "default": true,
+          "type": "boolean"
+        },
         "resource.Observation.vitalSigns.ucumCodeInUnit": {
           "title": "Output code in unit instead of code",
           "description": "For UCUM-coded measurements, move the machine-readable code from code to unit and remove code. This produces faulty test data, for example when mmol/L appears only in unit. Applies to valueQuantity and component.valueQuantity. Replaces the readable unit text; value, comparator and system are retained. DAR rules are applied afterwards. FHIR validation may report errors for this output.",
