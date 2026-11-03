@@ -23,7 +23,7 @@ class ComposeProfilesTest(unittest.TestCase):
                     if 'blaze' in profiles or 'data-portal' in profiles:
                         expected.update(['blaze', 'blaze-proxy'])
                     if 'hapi' in profiles:
-                        expected.update(['hapi', 'hapi-db'])
+                        expected.update(['hapi', 'hapi-db', 'hapi-proxy'])
                     if 'data-portal' in profiles:
                         expected.update(['portal-init', 'dataportal-ui', 'dataportal-backend',
                                          'dataportal-postgres', 'dataportal-elastic', 'init-elasticsearch',

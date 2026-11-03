@@ -48,7 +48,10 @@ runs, build cache and database growth can exceed the starting disk budget.
 between these Compose profiles preserves its resources. Host clients access Blaze
 through the proxy at `http://localhost:5190/fhir`. Docker services use
 `http://blaze:8080/fhir` directly. Search results use the corresponding address
-for pagination links and resource URLs. HAPI has a separate
+for pagination links and resource URLs.
+
+The HAPI proxy serves Swagger UI and its OpenAPI definition at the same origin on port 5191. Docker
+clients reach HAPI directly at `http://hapi:8080/fhir`. HAPI has a separate
 database and port. All volume names are scoped to the Compose project. The
 services bind published ports to loopback. The application uses HTTP to reach
 services; service lifecycle is controlled through Compose.
@@ -61,7 +64,7 @@ separate targets. Stopping services retains their volumes. To stop one server:
 
 ```sh
 docker compose -f web/compose.yml stop blaze-proxy blaze
-docker compose -f web/compose.yml stop hapi hapi-db
+docker compose -f web/compose.yml stop hapi-proxy hapi hapi-db
 ```
 
 Changing profile flags does not stop already running services. To stop the whole
