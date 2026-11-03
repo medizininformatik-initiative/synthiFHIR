@@ -21,7 +21,7 @@ class ComposeProfilesTest(unittest.TestCase):
                     services = config['services']
                     expected = {'api', 'worker', 'web', 'output-init'}
                     if 'blaze' in profiles or 'data-portal' in profiles:
-                        expected.add('blaze')
+                        expected.update(['blaze', 'blaze-proxy'])
                     if 'hapi' in profiles:
                         expected.update(['hapi', 'hapi-db'])
                     if 'data-portal' in profiles:

@@ -107,10 +107,12 @@ jobs:
       run: docker run --rm -i --user 0:0 --memory=2g synthifhir-workbench:ci python - < web/integration/smoke_output_storage.py
     - name: Verify blazectl uploads on Blaze and HAPI
       run: |
-        trap 'docker compose -f web/compose.yml stop blaze hapi hapi-db' EXIT
-        docker compose -f web/compose.yml up -d --wait --wait-timeout 180 blaze
+        trap 'docker compose -f web/compose.yml stop blaze-proxy blaze hapi hapi-db' EXIT
+        docker compose -f web/compose.yml up -d --wait --wait-timeout 180 blaze-proxy
         docker run --rm --memory=1g --network synthifhir-workbench_default -v "$PWD/web/integration/smoke_fhir_upload.py:/probe.py:ro" synthifhir-workbench:ci python /probe.py blaze
-        docker compose -f web/compose.yml stop blaze
+        python3 web/integration/smoke_blaze_pagination.py http://localhost:5190/fhir --seed
+        docker run --rm -i --network synthifhir-workbench_default synthifhir-workbench:ci python - http://blaze:8080/fhir < web/integration/smoke_blaze_pagination.py
+        docker compose -f web/compose.yml stop blaze-proxy blaze
         docker compose -f web/compose.yml up -d hapi-db hapi
         for attempt in $(seq 1 90); do
           if curl --fail --silent http://localhost:5191/fhir/metadata >/dev/null; then break; fi

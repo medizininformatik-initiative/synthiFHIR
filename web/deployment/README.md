@@ -45,7 +45,10 @@ runs, build cache and database growth can exceed the starting disk budget.
 | TORCH result files | http://localhost:5194 | `torch-data` (read-only file service) |
 
 `blaze` and `data-portal` select the same Blaze service and volume. Changing
-between these Compose profiles preserves its resources. HAPI has a separate
+between these Compose profiles preserves its resources. Host clients access Blaze
+through the proxy at `http://localhost:5190/fhir`. Docker services use
+`http://blaze:8080/fhir` directly. Search results use the corresponding address
+for pagination links and resource URLs. HAPI has a separate
 database and port. All volume names are scoped to the Compose project. The
 services bind published ports to loopback. The application uses HTTP to reach
 services; service lifecycle is controlled through Compose.
@@ -57,7 +60,7 @@ separate, explicit operation in the [workbench](../README.md#load-datasets-into-
 separate targets. Stopping services retains their volumes. To stop one server:
 
 ```sh
-docker compose -f web/compose.yml stop blaze
+docker compose -f web/compose.yml stop blaze-proxy blaze
 docker compose -f web/compose.yml stop hapi hapi-db
 ```
 
