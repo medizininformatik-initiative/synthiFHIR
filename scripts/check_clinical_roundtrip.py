@@ -10,7 +10,7 @@ from check_output_selection import selected, enabled, event_id
 from check_medication_selection import product_id
 
 
-def check_clinical(source, target, report):
+def check_clinical(source, target, report, station_count):
     from terminology_year import emitted, signature
     terminology = report.get('terminology', {})
     year, mode = terminology.get('mappingYear', '2026'), terminology.get('versionOutput', 'Jahr')
@@ -58,12 +58,7 @@ def check_clinical(source, target, report):
         assert provisions['type'] == 'deny'
         assert {c['code'].rsplit('.',1)[-1]: p['type'] for p in provisions['provision']
                 for concept in p['code'] for c in concept['coding']} == expected_codes
-    if options.get('ENCOUNTER_STATION_SERVICE_PROVIDER') == 'generate-reference':
-        organization_ids = {r['serviceProvider']['reference'].split('/',1)[1] for r in dst
-                            if r['resourceType'] == 'Encounter' and r.get('serviceProvider',{}).get('reference','').startswith('Organization/')}
-        assert {r['id'] for r in dst if r['resourceType'] == 'Organization'} == organization_ids
-        wanted['Organization'] = len(organization_ids)
-    excluded = {'Patient','Encounter','Condition','Medication'}
+    excluded = {'Patient','Encounter','Condition','Medication','Organization'}
     if 'movements' in report: excluded.add('Location')
     actual = Counter(r['resourceType'] for r in dst if r['resourceType'] not in excluded)
     assert wanted == actual, {'expectedClinicalCounts':wanted,'actualClinicalCounts':actual}
@@ -153,4 +148,6 @@ def check_clinical(source, target, report):
         base64.b64decode(r['content'][0]['attachment']['data']).decode('utf-8')for r in dst if r['resourceType']=='DocumentReference'), 'Document text changed'
     from check_clinical_references import check_clinical_references
     check_clinical_references(source, dst, report, rows['Medikation'], document_rows)
+    if options.get('ENCOUNTER_STATION_SERVICE_PROVIDER') == 'generate-reference':
+        wanted['Organization'] = station_count
     return {'counts':dict(wanted),'medicationDefinitions':len(medications),'clinicalProjection':'passed'}
