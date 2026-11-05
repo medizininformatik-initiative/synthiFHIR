@@ -16,8 +16,8 @@
 		<hapi.fhir.version>8.12.1</hapi.fhir.version>
 		<slf4j.version>2.0.20</slf4j.version>
 		<log4j.version>2.26.1</log4j.version>
-		<jackson-core.version>2.22.3</jackson-core.version>
-		<jackson-databind.version>2.22.3</jackson-databind.version>
+		<jackson-core.version>2.22.4</jackson-core.version>
+		<jackson-databind.version>2.22.4</jackson-databind.version>
 		<guava.version>33.7.2-jre</guava.version>
 		<ucum.version>1.0.10</ucum.version>
 	</properties>
