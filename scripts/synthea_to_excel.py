@@ -16,7 +16,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from workbook_xml import read_sheets
+from workbook_xml import read_sheets, validation_ranges
 from diagnosis_mapping import map_diagnosis, mapping_metadata
 from clinical_import import prepare_clinical, SUPPORTED
 from clinical_events import prepare_events, prepare_documents, SHEETS
@@ -383,8 +383,10 @@ class WorkbookSession:
             str(soffice), '-env:UserInstallation=' + (self.directory / 'profile').as_uri(),
             '--headless', '--norestore', '--nodefault',
             f'--accept=socket,host=localhost,port={self.port};urp;StarOffice.ComponentContext'],
-            # Bound native allocator retention across documents and XLSX export threads.
-            env=dict(os.environ, MALLOC_ARENA_MAX='2'),
+            # Parallel XLSX import can split validation rules nondeterministically,
+            # including their relative formula anchors. Keep UNO workbook edits serial.
+            # Bound native allocator retention across documents as well.
+            env=dict(os.environ, MAX_CONCURRENCY='1', MALLOC_ARENA_MAX='2'),
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             for attempt in range(100):
@@ -406,6 +408,10 @@ class WorkbookSession:
             temp = Path(temp)
             commands = temp / 'edits.tsv'
             with commands.open('w', encoding='utf-8') as stream:
+                # Calc can fragment imported validations and their relative anchors.
+                # Reassign the existing UNO rule before applying any requested edits.
+                for sheet, ranges in validation_ranges(template):
+                    stream.write('reuseValidation\t' + sheet + '\t' + ranges + '\n')
                 for operation in ops:
                     stream.write(operation)
                     stream.write('\n')
