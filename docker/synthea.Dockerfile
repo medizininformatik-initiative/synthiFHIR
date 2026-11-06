@@ -19,9 +19,9 @@ COPY input/FHIR_Testdatengenerator_Vorlage.xlsx input/
 RUN --mount=type=cache,id=synthifhir-maven,target=/root/.m2,sharing=locked \
     mvn -B test package
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    ca-certificates tzdata python3 openjdk-17-jdk-headless libreoffice-calc \
+    ca-certificates tzdata python3 openjdk-21-jdk-headless libreoffice-calc \
     libreoffice-java-common fonts-crosextra-carlito \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/timezone /etc/localtime \
