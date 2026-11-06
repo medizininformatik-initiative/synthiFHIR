@@ -19,7 +19,7 @@ TARGETS = {
     'blaze': {'name': 'Blaze', 'url': 'http://blaze:8080/fhir', 'address': 'http://localhost:5190/fhir', 'concurrency': 1},
     'hapi': {'name': 'HAPI', 'url': 'http://hapi:8080/fhir', 'address': 'http://localhost:5191/fhir', 'concurrency': 1},
 }
-BLAZECTL_VERSION = '1.5.1'
+BLAZECTL_VERSION = '1.6.0'
 
 
 def target_status(identifier):
