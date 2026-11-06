@@ -304,8 +304,8 @@ server diagnostics expand on demand; a short error remains visible. Delete an
 individual completed history entry or clear all completed history to remove its
 local logs and working files. Uploaded resources remain on the FHIR server.
 
-The worker uses pinned `blazectl 1.5.1`, with two concurrent transactions for
-Blaze and one for HAPI. It prepares PUT transactions preserving resource IDs and
+The worker uses pinned `blazectl 1.6.0`, with one transaction at a time for
+each FHIR server. It prepares PUT transactions preserving resource IDs and
 FHIR resources, selects one representation per output directory in the same
 order as dataset inspection, and supports JSON, NDJSON, compressed JSON and XML.
 Original dataset files and archives remain unchanged. Missing resource IDs are
