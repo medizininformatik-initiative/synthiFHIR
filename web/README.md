@@ -254,8 +254,10 @@ Expand the report section for import, validation and projection summaries, then
 use each report link for the complete file. Summaries cover reports up to 2 MiB;
 all reports remain accessible through the file list. Search the file list for
 workbooks, sources, options, reports or logs. File and dataset downloads stream
-from disk. The complete run ZIP remains available alongside the separate FHIR
-dataset archives. Failed runs retain available artifacts for diagnosis.
+from disk. Download names use saved output-patient counts without rescanning FHIR
+files. Names omit the patient count when it is unavailable or when a complete run
+contains multiple datasets whose patient IDs may overlap. The complete run ZIP
+remains available alongside the separate FHIR dataset archives. Failed runs retain available artifacts for diagnosis.
 
 The worker records a persistent dataset manifest and archive checksum. It indexes
 finished runs when idle and publishes each manifest atomically. The inspection
