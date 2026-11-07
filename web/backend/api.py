@@ -162,11 +162,12 @@ def download(job_id: str):
     folder, job = directory(job_id)
     if not job["download_available"]:
         raise HTTPException(409, "Result archive is not available")
+    count = archive_names.run_patient_count(datasets.get(job_id))
     if (folder / 'cleanup.json').is_file():
         path = run_cleanup.archive(job_id)
-        return FileResponse(path, filename=archive_names.filename(job.get('dataset_name'), archive_names.patient_count(path, result=True), job_id),
+        return FileResponse(path, filename=archive_names.filename(job.get('dataset_name'), count, job_id),
                             background=BackgroundTask(path.unlink, missing_ok=True))
-    return FileResponse(folder / "result.zip", filename=archive_names.filename(job.get('dataset_name'), archive_names.patient_count(folder / 'result.zip', result=True), job_id))
+    return FileResponse(folder / "result.zip", filename=archive_names.filename(job.get('dataset_name'), count, job_id))
 
 
 @app.get('/api/jobs/{job_id}/inputs-download')
@@ -365,15 +366,13 @@ def dataset_download(dataset_id: str):
         job, item, path = datasets.resolve_dataset(dataset_id)
         if not path.is_file():
             raise HTTPException(409, 'Dataset archive is not available')
-        count = item.get('inspection', {}).get('patients')
-        if count is None:
-            count = archive_names.patient_count(path)
+        count = archive_names.patient_count(item)
         if item.get('kind') == 'bulk':
             if path.name.endswith(('.ndjson.gz', '.ndjson')):
                 name = path.name
             else:
                 stem = re.sub(r'-\d+Pat$', '', path.stem)
-                name = f'{stem}-{count}Pat.zip'
+                name = archive_names.filename(stem, count, dataset_id)
         else:
             name = archive_names.filename(job.get('dataset_name'), count, dataset_id)
         return FileResponse(path, filename=name)
