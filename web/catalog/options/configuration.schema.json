@@ -694,7 +694,7 @@
         },
         "document.type.mode": {
           "title": "Type codings — application",
-          "description": "• Use input values: Keep the type from Excel/CSV, including all continuation rows. The editor list has no effect.\n• Fill missing list: Use the editor list only when the document type is entirely absent. An existing text-only type also prevents filling.\n• Replace entire list: Replace type codings and type text of every document with the editor list. An empty list removes the type.\n• NLP settings apply independently.",
+          "description": "Use input values: Keep the type from Excel/CSV, including all continuation rows. The editor list has no effect.\n\nFill missing list: Use the editor list only when the document type is entirely absent. An existing text-only type also prevents filling.\n\nReplace entire list: Replace type codings and type text of every document with the editor list. An empty list removes the type.\n\nNLP settings apply independently.",
           "default": "input",
           "enum": [
             "input",
@@ -704,7 +704,7 @@
         },
         "document.type.values": {
           "title": "Type codings",
-          "description": "• Target: DocumentReference.type.coding. Each row creates one coding of the same document type.\n• System: Code system identifier, e.g. the KDL or XDS system URL. Freely editable.\n• Code: Value within that system, e.g. AD010110 or BERI. Select a suggestion or enter a free value.\n• Display: Human-readable text in Coding.display; optional and freely editable.\n• Changing one field does not automatically change the others.\n• + adds an empty row; − removes that row only. Completely empty rows create no coding.\n• Order and entered values are saved in the configuration, even when application is inactive.",
+          "description": "Target: DocumentReference.type.coding. Each row creates one coding of the same document type.\n\nSystem: Code system identifier, e.g. the KDL or XDS system URL. Freely editable.\n\nCode: Value within that system, e.g. AD010110 or BERI. Select a suggestion or enter a free value.\n\nDisplay: Human-readable text in Coding.display; optional and freely editable.\n\nChanging one field does not automatically change the others.\n\n+ adds an empty row; − removes that row only. Completely empty rows create no coding.\n\nOrder and entered values are saved in the configuration, even when application is inactive.",
           "default": [],
           "type": "array",
           "items": {
@@ -725,7 +725,7 @@
         },
         "document.nlp.mode": {
           "title": "NLP processing statuses — application",
-          "description": "• Use input values: Keep NLP statuses from Excel/CSV, including all continuation rows.\n• Fill missing list: Use the editor list only when no NLP status value exists. Existing lists are not extended.\n• Replace entire list: Replace all NLP statuses of every document with the editor list. An empty list removes the NLP extension.\n• Omit extension: Remove the NLP extension from every document. Other extensions remain unchanged.\n• Type codings are unaffected.",
+          "description": "Use input values: Keep NLP statuses from Excel/CSV, including all continuation rows.\n\nFill missing list: Use the editor list only when no NLP status value exists. Existing lists are not extended.\n\nReplace entire list: Replace all NLP statuses of every document with the editor list. An empty list removes the NLP extension.\n\nOmit extension: Remove the NLP extension from every document. Other extensions remain unchanged.\n\nType codings are unaffected.",
           "default": "input",
           "enum": [
             "input",
@@ -736,7 +736,7 @@
         },
         "document.nlp.values": {
           "title": "NLP processing statuses",
-          "description": "• Target: One NLP extension with valueCodeableConcept. Each row adds one coding to it.\n• Code: Select a suggested status or enter your own code.\n• Extension URL and coding system use the fixed MII URLs shown below.\n• format-change and content-change also require preprocessed. preanno, deid and semantic also require annotated.\n• Unknown codes and missing parent statuses produce hints. Values are preserved; missing statuses are not added automatically.\n• + adds a row; − removes it. Empty status rows are skipped in the output.\n• Status values describe the document. They do not process or de-identify its text.\n• The list remains saved when application is inactive.",
+          "description": "Target: One NLP extension with valueCodeableConcept. Each row adds one coding to it.\n\nCode: Select a suggested status or enter your own code.\n\nExtension URL and coding system use the fixed MII URLs shown below.\n\nformat-change and content-change also require preprocessed. preanno, deid and semantic also require annotated.\n\nUnknown codes and missing parent statuses produce hints. Values are preserved; missing statuses are not added automatically.\n\n+ adds a row; − removes it. Empty status rows are skipped in the output.\n\nStatus values describe the document. They do not process or de-identify its text.\n\nThe list remains saved when application is inactive.",
           "default": [],
           "type": "array",
           "items": {
