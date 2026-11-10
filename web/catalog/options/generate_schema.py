@@ -32,6 +32,8 @@ def generate():
                               items={'enum': option['choices']})
         else:
             definition['type'] = kind
+        if 'items' in option:
+            definition['items'] = option['items']
         if 'minimum' in option:
             definition['minimum'] = option['minimum']
         options[option['id']] = definition

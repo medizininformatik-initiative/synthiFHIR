@@ -691,6 +691,57 @@
           "description": "Creates the ward Location with physicalType wa. Can be combined with the ward organization. Room and bed can still be represented independently; Location output settings also apply.",
           "default": true,
           "type": "boolean"
+        },
+        "document.type.mode": {
+          "title": "Type codings — application",
+          "description": "Keep input values, fill an entirely missing list, or replace the whole list. Rows remain saved when application is inactive.",
+          "default": "input",
+          "enum": [
+            "input",
+            "fill",
+            "replace"
+          ]
+        },
+        "document.type.values": {
+          "title": "Type codings",
+          "description": "Keep input values, fill an entirely missing list, or replace the whole list. Rows remain saved when application is inactive.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "system": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "display": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "document.nlp.mode": {
+          "title": "NLP processing statuses — application",
+          "description": "Keep input values, fill an entirely missing list, or replace the whole list. Rows remain saved when application is inactive.",
+          "default": "input",
+          "enum": [
+            "input",
+            "fill",
+            "replace",
+            "omit"
+          ]
+        },
+        "document.nlp.values": {
+          "title": "NLP processing statuses",
+          "description": "Keep input values, fill an entirely missing list, or replace the whole list. Rows remain saved when application is inactive.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false,

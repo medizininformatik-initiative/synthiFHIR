@@ -1,3 +1,4 @@
+import { DocumentSettings } from './DocumentSettings'
 import { BulkOutputSettings } from './BulkOutputSettings'
 import identifierBindings from '../../catalog/options/identifier-bindings.json'
 import { SavedConfigurations } from './SavedConfigurations'
@@ -560,7 +561,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                     {r.classCode && <>
                       <p className="mb-2 text-sm text-slate-600">{t('app.config.encounterEndSummary')}</p>
                     </>}
-                    {resourceOptions(r.id).map((option) => (
+                    {resourceOptions(r.id).filter(option => option.control !== 'document').map((option) => (
                       <OptionControl
                         key={option.id}
                         option={option}
@@ -569,6 +570,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                         t={t}
                       />
                     ))}
+                    {r.id === 'DocumentReference' && <DocumentSettings config={config} update={update} t={t} />}
                     {r.id === 'Encounter' && contactSupport.map(child => (
                       <section key={child.id} id={`resource-${child.id}`} className="mt-5 scroll-mt-6 rounded-lg border border-slate-200 p-4">
                         <h4 className="mb-2 text-base font-semibold">{t(child.labelKey)}
