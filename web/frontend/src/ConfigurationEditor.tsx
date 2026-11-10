@@ -42,7 +42,11 @@ const groups = [
 const resources = groups.flatMap((group) =>
   contract.resources.filter((r) => r.group === group.id)
 )
-const editorResources = resources.filter(r => r.id !== 'Location')
+const editorResources = resources
+  .filter(r => r.id !== 'Location' && r.group !== 'medication')
+  .flatMap(r => r.id === 'Observation.other'
+    ? [r, ...resources.filter(resource => resource.group === 'medication')]
+    : [r])
 const contactSupport = [
   { id: 'Organization', labelKey: 'app.config.organization' },
   { id: 'Location', labelKey: 'resource.Location.label' }
