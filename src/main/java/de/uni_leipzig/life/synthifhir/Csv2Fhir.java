@@ -129,17 +129,27 @@ public class Csv2Fhir {
                 Map<Long, String> patients = new HashMap<>();
                 recordPatients.put(table, patients);
                 String previous = null;
+                var documents = new de.uni_leipzig.life.synthifhir.converter.DocumentRows();
                 for (CSVRecord record : records) {
                     if (record.size() != parser.getHeaderNames().size()) {
                         importReport.failure(table, record.getRecordNumber(), "MALFORMED_RECORD", "Field count does not match the header", null);
                         // A malformed explicit ID must not silently redirect following continuation rows.
                         previous = null;
+                        documents.reset();
                         continue;
                     }
                     String pid = record.get(table.getPIDColumnIdentifier().toString());
-                    if (isNullOrEmpty(pid) && isRecordEmpty(record, table == TableIdentifier.Behandlungsplan
+                    if (isNullOrEmpty(pid) && isRecordEmpty(record, (table == TableIdentifier.Behandlungsplan || table == TableIdentifier.DocumentReference)
                             ? parser.getHeaderNames().stream().filter(h -> !h.equals("Erklärung/Ausfüllhilfe")).toList()
                             : table.getMandatoryColumnNames())) { summary.emptyRows++; continue; }
+                    if (table == TableIdentifier.DocumentReference) {
+                        var errors = documents.accept(key -> record.isMapped(key) ? record.get(key) : null);
+                        if (!errors.isEmpty()) {
+                            importReport.failure(table, record.getRecordNumber(), "DOCUMENT_BLOCK_ERROR", String.join("; ", errors), null);
+                            continue;
+                        }
+                        pid = documents.patient();
+                    }
                     if (!isNullOrEmpty(pid)) previous = pid;
                     if (previous == null) importReport.failure(table, record.getRecordNumber(), "MISSING_PATIENT", "Patient-ID is empty and no preceding Patient-ID is available", null);
                     else patients.put(record.getRecordNumber(), previous);
@@ -180,11 +190,19 @@ public class Csv2Fhir {
                 Map<Long, String> patients = new HashMap<>();
                 recordPatients.put(table, patients);
                 String previous = null;
+                var documents = new de.uni_leipzig.life.synthifhir.converter.DocumentRows();
                 for (CSVRecord record : records) {
                     String pid = record.get(table.getPIDColumnIdentifier().toString());
-                    if (isNullOrEmpty(pid) && isRecordEmpty(record, table == TableIdentifier.Behandlungsplan
+                    if (isNullOrEmpty(pid) && isRecordEmpty(record, (table == TableIdentifier.Behandlungsplan || table == TableIdentifier.DocumentReference)
                             ? parser.getHeaderNames().stream().filter(h -> !h.equals("Erklärung/Ausfüllhilfe")).toList()
                             : table.getMandatoryColumnNames())) continue;
+                    if (table == TableIdentifier.DocumentReference) {
+                        var errors = documents.accept(key -> record.isMapped(key) ? record.get(key) : null);
+                        if (!errors.isEmpty()) {
+                            throw new IllegalArgumentException(String.join("; ", errors));
+                        }
+                        pid = documents.patient();
+                    }
                     if (!isNullOrEmpty(pid)) previous = pid;
                     if (previous != null) patients.put(record.getRecordNumber(), previous);
                 }
@@ -613,6 +631,9 @@ public class Csv2Fhir {
                 if (table == TableIdentifier.Behandlungsplan && record.get("Patient-ID") != null
                         && !record.get("Patient-ID").isBlank())
                     result.currentCarePlan = null;
+                if (table == TableIdentifier.DocumentReference && record.isMapped("Dokument-ID")
+                        && de.uni_leipzig.life.synthifhir.converter.DocumentRows.present(record.get("Dokument-ID")))
+                    result.currentDocumentReference = null;
                 try {
                     List<? extends Resource> resources = table.convert(record, pid, result, validator, options);
                     for (Resource resource : resources) pendingOutput.add(Map.entry(table, resource));
@@ -629,6 +650,14 @@ public class Csv2Fhir {
         // Later rows can still complete earlier contacts. Project only after all derivations.
         List<Resource> potentialResources = pendingOutput.stream().map(Map.Entry::getValue)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        if (!generatedTables) for (Resource resource : potentialResources) {
+            if (resource instanceof org.hl7.fhir.r4.model.DocumentReference) {
+                var document = (org.hl7.fhir.r4.model.DocumentReference)resource;
+                for (String issue : de.uni_leipzig.life.synthifhir.converter.DocumentReferenceConverter.nlpIssues(document))
+                    importReport.documentIssues.add(Map.of("resourceId", document.getId(), "reason", issue,
+                            "iteration", Integer.toString(options.loopCounter)));
+            }
+        }
         long shiftDays = ClinicalTimeShift.days(options);
         ClinicalTimeShift.apply(potentialResources, shiftDays);
         if (!generatedTables && shiftDays != 0) importReport.timeShifts.add(Map.of("patientId", filterID,

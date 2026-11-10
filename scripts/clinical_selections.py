@@ -30,6 +30,11 @@ LISTS = {
     'AU': ['Codierte Messwertantworten', 'LOINC', SNOMED],
     'AV': ['Medikamentencodes', 'PZN', SNOMED, 'RxNorm', 'CVX'],
     'BP': ['Einheitencodesystem', 'http://unitsofmeasure.org'],
+    'BR': ['NLP-Verarbeitungsstatus', 'unprocessed', 'preprocessed', 'format-change', 'content-change',
+           'annotated', 'preanno', 'deid', 'semantic', 'surrogated'],
+    'BS': ['Dokumenttyp-Codes', 'AD010110', 'BERI'],
+    'BT': ['Dokumenttyp-Systeme', 'http://dvmd.de/fhir/CodeSystem/kdl',
+           'http://ihe-d.de/CodeSystems/IHEXDStypeCode', 'LOINC', SNOMED],
     'AW': ['Wirkstoffcodes', 'ASK', 'UNII', SNOMED, 'RxNorm'],
     'AY': ['Impfstoffcodes', 'ATC', SNOMED, 'RxNorm', 'CVX'],
     'AZ': ['Befund- und Dokumenttypen', 'LOINC', SNOMED],
@@ -57,7 +62,7 @@ SELECTIONS = {
     'Medikation': {'Präparatcodesystem': 'AV', 'Wirkstoffcodesystem': 'AW', 'Wirkstoffcode': 'BH', 'Dosiereinheitcodesystem': 'BP'},
     'Impfung': {'Codesystem': 'AY', 'Status': 'BB'},
     'Befundbericht': {'Codesystem': 'AZ', 'Status': 'BC'},
-    'DocumentReference': {'Dokumentcodesystem': 'AZ'},
+    'DocumentReference': {'Dokumentcodesystem': 'BT', 'Dokumentcode': 'BS', 'NLPStatus': 'BR'},
     'Behandlungsplan': {'Kategoriecodesystem': 'BA', 'Aktivitätscodesystem': 'BA', 'Absicht': 'BD', 'Aktivitätsstatus': 'BQ'},
 }
 
@@ -138,7 +143,7 @@ def validation_ops(sheets, row_counts=None):
                 ref = '$Codes.' + ':'.join(re.sub(r'([A-Z]+)([0-9]+)', r'$\1$\2', cell) for cell in (first, end))
             else:
                 ref = f'$Codes.${source}$30:${source}${28 + len(LISTS[source])}'
-            strict = sheet != 'Behandlungsplan' and header not in OPEN_FIELDS.get(sheet, {}) and header not in ('Wirkstoffcode', 'Darreichungsform') and not header.lower().endswith('codesystem')
+            strict = sheet not in ('Behandlungsplan', 'DocumentReference') and header not in OPEN_FIELDS.get(sheet, {}) and header not in ('Wirkstoffcode', 'Darreichungsform') and not header.lower().endswith('codesystem')
             ops.append(f'validation\t{sheet}\t{col}2:{col}{last}\t{ref}\t{str(strict).lower()}')
         if sheet == 'Medikation':
             kind_col = headers['Medikationstyp']

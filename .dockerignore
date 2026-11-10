@@ -10,6 +10,7 @@
 !FHIR_Testdatengenerator_Vorlage.xlsx
 !input/
 !input/FHIR_Testdatengenerator_Vorlage.xlsx
+!input/document-example.txt
 !FHIR_Testdatengenerator_Interpolar_Demo.xlsx
 **/__pycache__
 **/*.pyc

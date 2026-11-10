@@ -112,6 +112,7 @@ def prepare_documents(entries, pid, encounters, *, diagnostics=True):
             if not text or len(text)>32767:raise UnsupportedValue('Document is empty or exceeds the Excel cell size limit')
             code,system,label=coding(r.get('type',{}))
             rows.append(record('DocumentReference', {
+                'Dokument-ID': r['id'],
                 'Patient-ID': pid,
                 'Fall-Nr': nr,
                 'Embed': 'ja',
