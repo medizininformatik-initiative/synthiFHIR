@@ -2318,6 +2318,118 @@
         }
       ],
       "fhirPath": "Encounter.location"
+    },
+    {
+      "id": "document.type.mode",
+      "section": "resources",
+      "type": "enum",
+      "default": "input",
+      "status": "agreed",
+      "control": "document",
+      "labelKey": "option.document.type.mode.label",
+      "helpKey": "option.document.type.mode.help",
+      "propertyName": "DOCUMENT_TYPE_MODE",
+      "enabledWhen": [
+        {
+          "option": "resource.DocumentReference.enabled",
+          "equals": true
+        }
+      ],
+      "disabledReasonKey": "disabled.requiresSelection",
+      "choices": [
+        "input",
+        "fill",
+        "replace"
+      ],
+      "choiceLabelKeys": {
+        "input": "document.mode.input",
+        "fill": "document.mode.fill",
+        "replace": "document.mode.replace"
+      }
+    },
+    {
+      "id": "document.type.values",
+      "section": "resources",
+      "type": "array",
+      "default": [],
+      "status": "agreed",
+      "control": "document",
+      "labelKey": "option.document.type.values.label",
+      "helpKey": "option.document.type.values.help",
+      "propertyName": "DOCUMENT_TYPE_VALUES",
+      "enabledWhen": [
+        {
+          "option": "resource.DocumentReference.enabled",
+          "equals": true
+        }
+      ],
+      "disabledReasonKey": "disabled.requiresSelection",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "system": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "id": "document.nlp.mode",
+      "section": "resources",
+      "type": "enum",
+      "default": "input",
+      "status": "agreed",
+      "control": "document",
+      "labelKey": "option.document.nlp.mode.label",
+      "helpKey": "option.document.nlp.mode.help",
+      "propertyName": "DOCUMENT_NLP_MODE",
+      "enabledWhen": [
+        {
+          "option": "resource.DocumentReference.enabled",
+          "equals": true
+        }
+      ],
+      "disabledReasonKey": "disabled.requiresSelection",
+      "choices": [
+        "input",
+        "fill",
+        "replace",
+        "omit"
+      ],
+      "choiceLabelKeys": {
+        "input": "document.mode.input",
+        "fill": "document.mode.fill",
+        "replace": "document.mode.replace",
+        "omit": "document.mode.omit"
+      }
+    },
+    {
+      "id": "document.nlp.values",
+      "section": "resources",
+      "type": "array",
+      "default": [],
+      "status": "agreed",
+      "control": "document",
+      "labelKey": "option.document.nlp.values.label",
+      "helpKey": "option.document.nlp.values.help",
+      "propertyName": "DOCUMENT_NLP_VALUES",
+      "enabledWhen": [
+        {
+          "option": "resource.DocumentReference.enabled",
+          "equals": true
+        }
+      ],
+      "disabledReasonKey": "disabled.requiresSelection",
+      "items": {
+        "type": "string"
+      }
     }
   ],
   "dar": {

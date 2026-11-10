@@ -691,6 +691,57 @@
           "description": "Creates the ward Location with physicalType wa. Can be combined with the ward organization. Room and bed can still be represented independently; Location output settings also apply.",
           "default": true,
           "type": "boolean"
+        },
+        "document.type.mode": {
+          "title": "Type codings — application",
+          "description": "Use input values: Keep the type from Excel/CSV, including all continuation rows. The editor list has no effect.\n\nFill missing list: Use the editor list only when the document type is entirely absent. An existing text-only type also prevents filling.\n\nReplace entire list: Replace type codings and type text of every document with the editor list. An empty list removes the type.\n\nNLP settings apply independently.",
+          "default": "input",
+          "enum": [
+            "input",
+            "fill",
+            "replace"
+          ]
+        },
+        "document.type.values": {
+          "title": "Type codings",
+          "description": "Each row creates one coding of the same document type.\n\nSystem: Code system identifier, e.g. the KDL or XDS system URL. Freely editable.\n\nCode: Value within that system, e.g. AD010110 or BERI. Select a suggestion or enter a free value.\n\nDisplay: Human-readable text in Coding.display; optional and freely editable.\n\nChanging one field does not automatically change the others.\n\n+ adds an empty row; − removes that row only. Completely empty rows create no coding.\n\nOrder and entered values are saved in the configuration, even when application is inactive.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "system": {
+                "type": "string"
+              },
+              "code": {
+                "type": "string"
+              },
+              "display": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "document.nlp.mode": {
+          "title": "NLP processing statuses — application",
+          "description": "Use input values: Keep NLP statuses from Excel/CSV, including all continuation rows.\n\nFill missing list: Use the editor list only when no NLP status value exists. Existing lists are not extended.\n\nReplace entire list: Replace all NLP statuses of every document with the editor list. An empty list removes the NLP extension.\n\nOmit extension: Remove the NLP extension from every document. Other extensions remain unchanged.\n\nType codings are unaffected.",
+          "default": "input",
+          "enum": [
+            "input",
+            "fill",
+            "replace",
+            "omit"
+          ]
+        },
+        "document.nlp.values": {
+          "title": "NLP processing statuses",
+          "description": "All status rows become codings within a single NLP extension.\n\nCode: Select a suggested status or enter your own code.\n\nExtension URL and coding system use the fixed MII URLs shown below.\n\nformat-change and content-change also require preprocessed. preanno, deid and semantic also require annotated.\n\nUnknown codes and missing parent statuses produce hints. Values are preserved; missing statuses are not added automatically.\n\n+ adds a row; − removes it. Empty status rows are skipped in the output.\n\nStatus values describe the document. They do not process or de-identify its text.\n\nThe list remains saved when application is inactive.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false,
