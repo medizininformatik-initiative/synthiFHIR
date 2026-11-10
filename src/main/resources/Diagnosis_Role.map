@@ -15,18 +15,9 @@
 
 CODE_SYSTEM_URL		http://terminology.hl7.org/CodeSystem/diagnosis-role
 
-###
-# PRÜFEN, OB PROZEDUREN UND ALLE MISSINGS WIRKLICH MIT CM VERSEHEN WERDEN SOLLEN!?
-###
-
-###########################################################################################################
-### NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE NOTE ###
-###                                                                                                     ###
-###      Diagnosis inheritance is optional and controlled by the converter options.                   ###
-###      The order of the Code values (CC, CM, AD, DD, ...) in this map determines which diagnosis      ###
-###                     type should be preferentially added to the part-of-Encounter!                   ###
-###                                                                                                     ###
-###########################################################################################################
+# Missing roles remain absent; no default diagnosis role is assigned.
+# The versioned converter filters contact links by the selected roles.
+# Map order is retained for legacy unversioned diagnosis inheritance.
 
 Chief\u0020complaint			CC
 Comorbidity\u0020diagnosis		CM
@@ -50,5 +41,3 @@ Hauptdiagnose					CC
 ### The misspelled next key was included in the first version of the Excel test data templates in the code list for the diagnoses
 Haupdiagnose					CC
 Nebendiagnose					CM
-
-DEFAULT_DIAGNOSIS_ROLE_CODE		CM

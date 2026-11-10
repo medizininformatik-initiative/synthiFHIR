@@ -446,7 +446,7 @@
   "app.config.fileRuleInactive": "Die Regel ist deaktiviert oder keiner ihrer Ressourcentypen wird ausgegeben.",
   "app.config.fileResourceInactive": "Die zugehörige Ressource ist nicht zur Ausgabe ausgewählt.",
   "option.contact.diagnoses.roles.label": "Diagnosenrollen",
-  "option.contact.diagnoses.roles.help": "Wählt die Diagnosenrollen aus der Eingabe, deren Diagnosen (Condition) am Kontakt referenziert werden. Die Rolle steht in Encounter.diagnosis.use.coding.code (Codesystem: http://terminology.hl7.org/CodeSystem/diagnosis-role). Die Auswahl gilt für alle automatisch zugeordneten Diagnosereferenzen.",
+  "option.contact.diagnoses.roles.help": "Wählt die Diagnosenrollen aus der Eingabe, deren Diagnosen (Condition) am Kontakt referenziert werden. Alle Rollen ausgewählt bedeutet: kein Rollenfilter; Verknüpfungen ohne oder mit unbekannter Rolle bleiben erhalten. Bei einer Teilauswahl bleiben nur passende Rollen erhalten; ohne ausgewählte Rollen entfallen alle Condition-Diagnosereferenzen. Fehlende Rollen werden nicht als Nebendiagnose (CM) ergänzt. Die Auswahl gilt für direkte und automatisch zugeordnete Referenzen; die Condition-Ressourcen bleiben erhalten. Prozedurreferenzen werden separat eingestellt.",
   "choice.diagnosisRole.CC": "Hauptdiagnose (CC)",
   "choice.diagnosisRole.CM": "Nebendiagnose (CM)",
   "choice.diagnosisRole.AD": "Aufnahmediagnose (AD)",

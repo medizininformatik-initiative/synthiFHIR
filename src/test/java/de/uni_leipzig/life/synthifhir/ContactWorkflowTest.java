@@ -80,6 +80,50 @@ public class ContactWorkflowTest {
         return encounters(resources).stream().filter(e -> e.getIdElement().getIdPart().equals(reference.getReferenceElement().getIdPart()))
                 .findFirst().orElseThrow(() -> new AssertionError("Missing target: " + reference.getReference()));
     }
+    @Test public void diagnosisRoleFiltersPreserveConditionsAndUnclassifiedLinksOnlyWhenUnrestricted() throws Exception {
+        String[] roles = {"Hauptdiagnose", "Nebendiagnose", "Aufnahmediagnose", ""};
+        List<Map<String, String>> rows = new ArrayList<>();
+        for (int i = 0; i < roles.length; i++) rows.add(Map.of("Patient-ID", "p1", "Fall-Nr", "1",
+                "Code", "A0" + i, "Codesystem", "ICD-10-GM 2026", "Typ", roles[i],
+                "Dokumentationszeitpunkt", "2026-01-03"));
+        table(TableIdentifier.Diagnose, rows);
+        Map<String, Set<String>> scenarios = new LinkedHashMap<>();
+        scenarios.put("default", Set.of("A00", "A01", "A02", "A03"));
+        scenarios.put("billing,post-op,pre-op,DD,AD,CM,CC", scenarios.get("default"));
+        scenarios.put("CC", Set.of("A00"));
+        scenarios.put("CM", Set.of("A01"));
+        scenarios.put("CC,CM", Set.of("A00", "A01"));
+        scenarios.put("AD", Set.of("A02"));
+        scenarios.put("", Set.of());
+        for (var scenario : scenarios.entrySet()) {
+            String settings = "CONTACT_DIAGNOSES_LEVELS=facility,department,ward-service\n";
+            if (!scenario.getKey().equals("default")) settings += "CONTACT_DIAGNOSES_ROLES=" + scenario.getKey() + "\n";
+            var resources = run(settings);
+            Map<String, String> codes = new HashMap<>();
+            for (Resource resource : resources) if (resource instanceof Condition) {
+                var condition = (Condition)resource;
+                codes.put(condition.getIdElement().getIdPart(), condition.getCode().getCodingFirstRep().getCode());
+            }
+            assertEquals(4, codes.size());
+            int carriers = 0;
+            for (var encounter : encounters(resources)) {
+                Set<String> actual = new HashSet<>();
+                for (var reference : encounter.getDiagnosis()) {
+                    String code = codes.get(reference.getCondition().getReferenceElement().getIdPart());
+                    actual.add(code);
+                    if ("A03".equals(code)) assertFalse(reference.hasUse());
+                }
+                if (!actual.isEmpty()) {
+                    assertEquals(scenario.getKey(), scenario.getValue(), actual);
+                    assertEquals(actual.size(), encounter.getDiagnosis().size());
+                    carriers++;
+                }
+            }
+            assertEquals(scenario.getKey(), scenario.getValue().isEmpty() ? 0 : 3, carriers);
+            assertTrue(report.diagnosisReferenceIssues.isEmpty());
+        }
+    }
+
     @Test public void diagnosisPropagationAndClinicalReferencesStayWithinPatientAndCaseAtTransferBoundary() throws Exception {
         List<Map<String, String>> diagnoses = new ArrayList<>();
         for (String patient : List.of("p1", "p2")) for (String number : List.of("1", "2"))

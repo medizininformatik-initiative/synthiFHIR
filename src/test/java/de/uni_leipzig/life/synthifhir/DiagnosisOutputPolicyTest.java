@@ -32,6 +32,45 @@ public class DiagnosisOutputPolicyTest {
     private List<String> refs(DiagnosisOutputPolicy policy, Encounter e) {
         return ((Encounter)policy.output(e)).getDiagnosis().stream().map(d -> d.getCondition().getReference()).toList();
     }
+    @Test public void unrestrictedRolesPreserveUnclassifiedLinksAtEveryAssignedLevel() {
+        var root = contact("root", FACILITY, null, 1, "2026-01-01", "2026-01-10");
+        var department = contact("department", DEPARTMENT, "root", 2, "2026-01-01", "2026-01-10");
+        var ward = contact("ward", WARD_SERVICE, "department", 3, "2026-01-01", "2026-01-10");
+        diagnosis(department, "missing", null, "2026-01-03");
+        department.getDiagnosisFirstRep().setUse(null);
+        diagnosis(department, "unknown", "custom-role", "2026-01-03");
+        diagnosis(department, "foreign", "CC", "2026-01-03");
+        department.getDiagnosis().get(2).getUse().getCodingFirstRep().setSystem("urn:custom");
+        for (String roles : List.of("", "CONTACT_DIAGNOSES_ROLES=billing,post-op,pre-op,DD,AD,CM,CC\n")) {
+            var p = policy("CONTACT_DIAGNOSES_LEVELS=facility,department,ward-service\n" + roles);
+            for (var target : List.of(root, department, ward)) {
+                assertEquals(List.of("Condition/missing", "Condition/unknown", "Condition/foreign"), refs(p, target));
+                var output = (Encounter)p.output(target);
+                assertFalse(output.getDiagnosisFirstRep().hasUse());
+                assertEquals("custom-role", output.getDiagnosis().get(1).getUse().getCodingFirstRep().getCode());
+                assertEquals("urn:custom", output.getDiagnosis().get(2).getUse().getCodingFirstRep().getSystem());
+            }
+            assertTrue(p.issues().isEmpty());
+        }
+        for (String roles : List.of("CC", "CM", "CC,CM", "AD", "")) {
+            var p = policy("CONTACT_DIAGNOSES_LEVELS=facility,department,ward-service\nCONTACT_DIAGNOSES_ROLES=" + roles + "\n");
+            for (var target : List.of(root, department, ward)) assertTrue(refs(p, target).isEmpty());
+            for (var resource : resources) if (resource instanceof Condition) assertSame(resource, p.output(resource));
+        }
+        assertFalse(department.getDiagnosisFirstRep().hasUse());
+    }
+
+    @Test public void targetedConditionRolesDoNotFilterProcedureLinks() {
+        var root = contact("root", FACILITY, null, 1, null, null);
+        diagnosis(root, "chief", "CC", null);
+        diagnosis(root, "secondary", "CM", null);
+        var procedure = new Procedure(); procedure.setId("p"); resources.add(procedure);
+        root.addDiagnosis().setCondition(new Reference("Procedure/p"));
+        assertEquals(List.of("Condition/secondary", "Procedure/p"),
+                refs(policy("CONTACT_DIAGNOSES_ROLES=CM\n"), root));
+        assertEquals(List.of("Procedure/p"), refs(policy("CONTACT_DIAGNOSES_ROLES=\n"), root));
+    }
+
     @Test public void downwardAssignmentChoosesOneDescendantPerLevelAndRespectsRoles() {
         var root = contact("root", FACILITY, null, 1, null, null);
         var old = contact("old", DEPARTMENT, "root", 2, "2026-05-01", "2026-05-03");

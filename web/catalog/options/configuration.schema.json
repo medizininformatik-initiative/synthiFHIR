@@ -282,7 +282,7 @@
         },
         "contact.diagnoses.roles": {
           "title": "Diagnosis roles",
-          "description": "Select the input diagnosis roles whose Conditions are referenced on encounters. The role is recorded in Encounter.diagnosis.use.coding.code (code system: http://terminology.hl7.org/CodeSystem/diagnosis-role). The same selection applies to all automatically assigned diagnosis references.",
+          "description": "Select the input diagnosis roles whose Conditions are referenced on encounters. Selecting all roles means no role filter; links with missing or unrecognized roles are retained. A subset retains only matching roles; selecting no roles removes all Condition diagnosis references. Missing roles are not assigned comorbidity (CM). The selection applies to direct and automatically assigned references; Condition resources remain available. Procedure references are configured separately.",
           "default": [
             "CC",
             "CM",
