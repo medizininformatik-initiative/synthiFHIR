@@ -869,5 +869,6 @@
   "document.free": "Select suggestions or enter your own values. Every row is freely editable.",
   "document.fixed": "Show fixed NLP URLs",
   "document.unknown": "Unknown code: {code}. The value is preserved.",
-  "document.parent": "Parent status {parent} is missing for {code}. Input is preserved."
+  "document.parent": "Parent status {parent} is missing for {code}. Input is preserved.",
+  "app.config.group.otherResources": "Other resources"
 }

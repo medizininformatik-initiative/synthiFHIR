@@ -43,9 +43,9 @@ const resources = groups.flatMap((group) =>
   contract.resources.filter((r) => r.group === group.id)
 )
 const editorResources = resources
-  .filter(r => r.id !== 'Location' && r.group !== 'medication')
+  .filter(r => r.id !== 'Location' && r.id !== 'Consent' && r.group !== 'medication')
   .flatMap(r => r.id === 'Observation.other'
-    ? [r, ...resources.filter(resource => resource.group === 'medication')]
+    ? [r, ...resources.filter(resource => resource.group === 'medication'), resources.find(resource => resource.id === 'Consent')!]
     : [r])
 const contactSupport = [
   { id: 'Organization', labelKey: 'app.config.organization' },
@@ -541,7 +541,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 <div key={r.id}>
                   {(index === 0 || editorResources[index - 1].group !== r.group) && (
                     <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-teal-800">
-                      {t(groups.find((g) => g.id === r.group)!.key)}
+                      {t(r.id === 'Consent' ? 'app.config.group.otherResources' : groups.find((g) => g.id === r.group)!.key)}
                     </h3>
                   )}
                   <section

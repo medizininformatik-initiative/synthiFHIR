@@ -869,5 +869,6 @@
   "document.free": "Vorschläge auswählen oder eigene Werte eingeben. Jede Zeile ist frei bearbeitbar.",
   "document.fixed": "Feste NLP-URLs anzeigen",
   "document.unknown": "Unbekannter Code: {code}. Der Wert wird unverändert übernommen.",
-  "document.parent": "Für {code} fehlt der übergeordnete Status {parent}. Die Eingabe bleibt unverändert."
+  "document.parent": "Für {code} fehlt der übergeordnete Status {parent}. Die Eingabe bleibt unverändert.",
+  "app.config.group.otherResources": "Weitere Ressourcen"
 }
