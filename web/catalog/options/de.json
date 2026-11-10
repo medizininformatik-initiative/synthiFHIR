@@ -841,13 +841,13 @@
   "choice.Medication.identity.shared": "Dasselbe Medikament wiederverwenden",
   "choice.Medication.identity.separate": "Für jeden Medikationseintrag ein neues Medikament anlegen",
   "option.document.type.mode.label": "Typ-Codings – Anwendung",
-  "option.document.type.mode.help": "Eingaben beibehalten, eine vollständig fehlende Liste ergänzen oder die gesamte Liste ersetzen. Die Zeilen bleiben auch bei inaktiver Anwendung gespeichert.",
+  "option.document.type.mode.help": "• Eingabedaten verwenden: Typ aus Excel/CSV einschließlich aller Fortsetzungszeilen übernehmen. Die Editor-Liste bleibt ohne Wirkung.\n• Nur fehlende Liste ergänzen: Editor-Liste nur verwenden, wenn der Dokumenttyp vollständig fehlt. Auch eine vorhandene reine Textbezeichnung verhindert das Ergänzen.\n• Gesamte Liste ersetzen: Typ-Codings und Typ-Text jedes Dokuments durch die Editor-Liste ersetzen. Eine leere Liste entfernt den Typ.\n• Die NLP-Einstellung gilt unabhängig davon.",
   "option.document.type.values.label": "Typ-Codings",
-  "option.document.type.values.help": "Eingaben beibehalten, eine vollständig fehlende Liste ergänzen oder die gesamte Liste ersetzen. Die Zeilen bleiben auch bei inaktiver Anwendung gespeichert.",
+  "option.document.type.values.help": "• Ziel: DocumentReference.type.coding. Jede Zeile erzeugt ein Coding desselben Dokumenttyps.\n• System: Kennung des Codesystems, z. B. die KDL- oder XDS-System-URL. Frei bearbeitbar.\n• Code: Wert innerhalb dieses Systems, z. B. AD010110 oder BERI. Vorschlag auswählen oder frei eingeben.\n• Bezeichnung: Lesbarer Text in Coding.display; optional und frei bearbeitbar.\n• Änderungen an einem Feld ändern die anderen Felder nicht automatisch.\n• + fügt eine leere Zeile hinzu; − entfernt nur diese Zeile. Vollständig leere Zeilen erzeugen kein Coding.\n• Reihenfolge und eingegebene Werte werden in der Konfiguration gespeichert, auch bei inaktiver Anwendung.",
   "option.document.nlp.mode.label": "NLP-Verarbeitungsstatus – Anwendung",
-  "option.document.nlp.mode.help": "Eingaben beibehalten, eine vollständig fehlende Liste ergänzen oder die gesamte Liste ersetzen. Die Zeilen bleiben auch bei inaktiver Anwendung gespeichert.",
+  "option.document.nlp.mode.help": "• Eingabedaten verwenden: NLP-Status aus Excel/CSV einschließlich aller Fortsetzungszeilen übernehmen.\n• Nur fehlende Liste ergänzen: Editor-Liste nur verwenden, wenn kein NLP-Statuswert vorhanden ist. Vorhandene Listen werden nicht erweitert.\n• Gesamte Liste ersetzen: Alle NLP-Statuswerte jedes Dokuments durch die Editor-Liste ersetzen. Eine leere Liste entfernt die NLP-Extension.\n• Extension weglassen: Die NLP-Extension aus allen Dokumenten entfernen. Andere Extensions bleiben erhalten.\n• Die Typ-Codings werden davon nicht verändert.",
   "option.document.nlp.values.label": "NLP-Verarbeitungsstatus",
-  "option.document.nlp.values.help": "Eingaben beibehalten, eine vollständig fehlende Liste ergänzen oder die gesamte Liste ersetzen. Die Zeilen bleiben auch bei inaktiver Anwendung gespeichert.",
+  "option.document.nlp.values.help": "• Ziel: Eine NLP-Extension mit valueCodeableConcept. Jede Zeile ergänzt darin ein Coding.\n• Code: Einen vorgeschlagenen Status auswählen oder einen eigenen Code eingeben.\n• Extension-URL und Coding-System werden fest auf die angezeigten MII-URLs gesetzt.\n• format-change und content-change benötigen zusätzlich preprocessed. preanno, deid und semantic benötigen zusätzlich annotated.\n• Unbekannte Codes und fehlende übergeordnete Status erzeugen Hinweise. Werte bleiben erhalten; fehlende Status werden nicht automatisch ergänzt.\n• + fügt eine Zeile hinzu; − entfernt sie. Leere Statuszeilen werden bei der Ausgabe übersprungen.\n• Die Statuswerte kennzeichnen das Dokument. Sie führen keine Verarbeitung oder De-Identifizierung des Textes aus.\n• Die Liste bleibt auch bei inaktiver Anwendung gespeichert.",
   "document.mode.input": "Eingabedaten verwenden",
   "document.mode.fill": "Nur fehlende Liste ergänzen",
   "document.mode.replace": "Gesamte Liste ersetzen",
@@ -870,5 +870,6 @@
   "document.fixed": "Feste NLP-URLs anzeigen",
   "document.unknown": "Unbekannter Code: {code}. Der Wert wird unverändert übernommen.",
   "document.parent": "Für {code} fehlt der übergeordnete Status {parent}. Die Eingabe bleibt unverändert.",
-  "app.config.group.otherResources": "Weitere Ressourcen"
+  "app.config.group.otherResources": "Weitere Ressourcen",
+  "document.presetHelp": "• Auswahl allein verändert die Zeilen nicht.\n• „Vorbelegung übernehmen“ ersetzt die gesamte zugehörige Editor-Liste. Eigene Änderungen an diesen Zeilen werden dabei überschrieben.\n• Danach lassen sich alle Zeilen frei bearbeiten, ergänzen und entfernen.\n• Die gewählte Anwendung entscheidet, ob und wie die Liste in die Dokumente übernommen wird.\n• Bei „Eingabedaten verwenden“ und „Extension weglassen“ ist die Bearbeitung deaktiviert. Gespeicherte Zeilen bleiben erhalten."
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus, Minus } from 'lucide-react'
+import { Help } from './Help'
 import { Button } from './components/ui/button'
 import { options, resourceEnabled, type Configuration, type Value, type DocumentCoding } from './configuration'
 import { typePresets, nlpPresets, nlpCodes, nlpExtension, nlpSystem, statusHints } from './document-settings'
@@ -24,15 +25,14 @@ export function DocumentSettings({ config, update, t }: {
         group === 'nlp' ? (rows as string[]).map((row, i) => i === index ? value : row)
           : (rows as DocumentCoding[]).map((row, i) => i === index ? { ...row, [field]: value } : row))
       return <section key={group} aria-label={t(`option.${prefix}.values.label`)} className="rounded-lg border border-slate-200 p-4">
-        <h4 className="mb-2 font-semibold">{t(`option.${prefix}.values.label`)}</h4>
-        <label className="block text-sm" htmlFor={`${prefix}.mode`}>{t(modeOption.labelKey)}</label>
+        <div className="mb-2 flex items-center gap-2"><h4 className="font-semibold">{t(`option.${prefix}.values.label`)}</h4><Help text={t(`option.${prefix}.values.help`)} t={t} /></div>
+        <div className="flex items-center gap-2"><label className="text-sm" htmlFor={`${prefix}.mode`}>{t(modeOption.labelKey)}</label><Help text={t(modeOption.helpKey)} t={t} /></div>
         <select id={`${prefix}.mode`} className={`${inputClass} mt-1`} disabled={!enabled} value={mode}
           onChange={event => update(`${prefix}.mode`, event.target.value)}>
           {modeOption.choices!.map(choice => <option key={String(choice)} value={choice}>{t(modeOption.choiceLabelKeys![String(choice)])}</option>)}
         </select>
-        <p className="my-2 text-sm text-slate-600">{t(modeOption.helpKey)}</p>
-        <fieldset disabled={inactive} className="space-y-3 disabled:opacity-60">
-          <label htmlFor={`${prefix}.preset`} className="block text-sm">{t('document.preset')}</label>
+        <fieldset disabled={inactive} className="mt-3 space-y-3 disabled:opacity-60">
+          <legend className="flex items-center gap-2 text-sm"><label htmlFor={`${prefix}.preset`}>{t('document.preset')}</label><Help text={t('document.presetHelp')} t={t} /></legend>
           <div className="flex flex-wrap gap-2">
             <select id={`${prefix}.preset`} className={`${inputClass} flex-1`} value={preset}
               onChange={event => group === 'type' ? setTypePreset(event.target.value) : setNlpPreset(event.target.value)}>
