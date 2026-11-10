@@ -48,7 +48,7 @@ class LocalizationTest(unittest.TestCase):
             required.add(contract['dar']['codeLabelKeyPattern'].format(code=code['code']))
         # Include keys used by the interface and its error helpers.
         for source in (ROOT / '../../frontend/src').rglob('*.ts*'):
-            required.update(re.findall(r"['\"]((?:app|identifier|dar)\.[\w.]+)['\"]", source.read_text()))
+            required.update(re.findall(r"['\"]((?:app|identifier|dar|document)\.[\w.]+)['\"]", source.read_text()))
         required.update('identifier.coding.' + field for field in ('system', 'code', 'display'))
         required.update('app.outcomes.' + status for status in (
             'succeeded', 'failed', 'cancelled', 'interrupted', 'passed',
@@ -57,6 +57,9 @@ class LocalizationTest(unittest.TestCase):
         required.update('app.generation.error.' + code for code in
                         re.findall(r"error\([^,]+, '([A-Za-z]+)'", validation))
         required.discard('identifier.typeLabel.')
+        required.difference_update({'document.type.mode', 'document.type.values', 'document.nlp.mode', 'document.nlp.values'})
+        required.update('document.' + field for field in ('system', 'code', 'display'))
+        required.update('document.preset.' + name for name in ('combined', 'kdl', 'xds', 'empty', 'original', 'format', 'surrogated'))
         bindings = json.loads((ROOT / 'identifier-bindings.json').read_text())
         required.update('identifier.typeLabel.' + item['code'] for item in bindings['types'])
         languages = {lang: read_unique(ROOT / filename)

@@ -650,6 +650,7 @@ public class Csv2Fhir {
         // Later rows can still complete earlier contacts. Project only after all derivations.
         List<Resource> potentialResources = pendingOutput.stream().map(Map.Entry::getValue)
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        DocumentSettings.apply(potentialResources, options.configuration());
         if (!generatedTables) for (Resource resource : potentialResources) {
             if (resource instanceof org.hl7.fhir.r4.model.DocumentReference) {
                 var document = (org.hl7.fhir.r4.model.DocumentReference)resource;

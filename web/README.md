@@ -87,6 +87,27 @@ editor changes apply to subsequent jobs. Invalid drafts disable the start action
 for KDS conversion;
 server-side validation errors are displayed without creating a job.
 
+## Document coding and NLP settings
+
+Under **DocumentReference**, configure type codings and NLP processing statuses independently.
+Each list defaults to **Use input values**. **Fill missing list** supplies the configured
+rows only when the complete source document has no type or NLP values; **Replace entire
+list** applies the configured rows to every document. NLP also offers **Omit extension**.
+Source continuation rows are collected before these rules run.
+
+Select a preset and click **Apply preset** to replace the editor rows. Type presets offer
+KDL + XDS, KDL only, XDS only, or an empty list. NLP presets offer the original document,
+preprocessed with format change, or that combination with surrogated status. Add, edit,
+and remove individual rows. Suggestions accept free system URLs, codes and displays;
+unknown NLP codes and missing parent statuses produce informational hints and retain
+the supplied values. NLP uses the fixed MII extension URL and coding system shown below
+the list. These statuses describe the output; they do not process or de-identify text.
+
+Rows remain stored when their application or DocumentReference generation is disabled.
+Saved configurations, JSON and properties exports preserve their order and free values.
+Properties store document lists as JSON arrays in `DOCUMENT_TYPE_VALUES` and
+`DOCUMENT_NLP_VALUES`, with application rules in `DOCUMENT_TYPE_MODE` and `DOCUMENT_NLP_MODE`.
+
 ## Saved configurations
 
 Use **Save editor configuration**, the

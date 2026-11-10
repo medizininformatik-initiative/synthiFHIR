@@ -5,7 +5,8 @@ import contractData from '../../catalog/options/contract.json' with { type: 'jso
 import catalogueData from '../../catalog/dar/generated/catalog.json' with { type: 'json' }
 import schema from '../../catalog/options/configuration.schema.json' with { type: 'json' }
 
-export type Value = string | number | boolean | string[] | null
+export type DocumentCoding = { system?: string; code?: string; display?: string }
+export type Value = string | number | boolean | string[] | DocumentCoding[] | null
 export type Dependency = { option: string; equals?: string | number | boolean; oneOf?: (string | number | boolean)[] }
 export const dependencyValues = (dependency: Dependency) => dependency.oneOf ?? [dependency.equals!]
 export type Option = {
@@ -360,6 +361,7 @@ export function resourceOptions(id: string): Option[] {
       o.section === 'resources' &&
       ((o.id.startsWith(`resource.${id}.`) && (id !== 'Encounter' || (!/^resource\.Encounter\.(ambulatory|inpatient)\./.test(o.id) && !['resource.Encounter.stationServiceProvider', 'resource.Encounter.stationLocation'].includes(o.id)))) ||
         o.id.startsWith(`reference.${id}.`) ||
+        (id === 'DocumentReference' && o.id.startsWith('document.')) ||
         (id === 'Encounter' && o.id.startsWith('contact.')) ||
         (id === 'Organization' && o.id === 'resource.Encounter.stationServiceProvider') ||
         (id === 'Location' && o.id === 'resource.Encounter.stationLocation') ||

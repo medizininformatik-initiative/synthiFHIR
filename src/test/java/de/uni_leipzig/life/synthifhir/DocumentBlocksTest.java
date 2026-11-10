@@ -13,6 +13,7 @@ import de.uni_leipzig.life.synthifhir.converter.DocumentRows;
 public class DocumentBlocksTest {
     @Rule public TemporaryFolder temp = new TemporaryFolder();
     private ImportReport report;
+    private String documentSettings = "";
     private List<DocumentReference> run(List<Map<String, String>> rows) throws Exception {
         Path input = temp.newFolder().toPath(), output = temp.newFolder().toPath();
         Files.writeString(input.resolve("case_Person.csv"),
@@ -32,7 +33,7 @@ public class DocumentBlocksTest {
             csv.printRecord(columns);
             for (var row : rows) csv.printRecord(columns.stream().map(c -> row.getOrDefault(c, "")).toList());
         }
-        var options = ConverterOptions.fromText("CONFIGURATION_VERSION=1\nOUTPUT_PATIENTS_PER_FILE=1000\nREFERENCE_DOCUMENT_REFERENCE_ASSIGNMENT_STRATEGY=explicit-only\n");
+        var options = ConverterOptions.fromText("CONFIGURATION_VERSION=1\nOUTPUT_PATIENTS_PER_FILE=1000\nREFERENCE_DOCUMENT_REFERENCE_ASSIGNMENT_STRATEGY=explicit-only\n" + documentSettings);
         var converter = new Csv2Fhir(input.toFile(), output.toFile(), "case_", null, options);
         converter.convertFiles(Integer.MAX_VALUE, OutputFileType.JSON);
         report = converter.getImportReport();
@@ -71,6 +72,20 @@ public class DocumentBlocksTest {
         assertEquals("Ärztlicher Text", new String(doc.getContentFirstRep().getAttachment().getData(), java.nio.charset.StandardCharsets.UTF_8));
         assertTrue(report.documentIssues.isEmpty());
         assertEquals(4, report.tables.get("DocumentReference").processedRows);
+    }
+    @Test public void settingsApplyAfterContinuationRowsAndReportConfiguredUnknownCodes() throws Exception {
+        documentSettings = "DOCUMENT_TYPE_MODE=fill\nDOCUMENT_TYPE_VALUES=[{\"code\":\"fallback\"}]\n"
+                + "DOCUMENT_NLP_MODE=fill\nDOCUMENT_NLP_VALUES=[\"custom\"]\n";
+        var docs = run(List.of(start("d1", "p1", "Text"),
+                Map.of("Dokumentcode", "source", "NLPStatus", "unprocessed"), start("d2", "p2", "Other")));
+        var first = docs.stream().filter(d -> d.getSubject().getReference().equals("Patient/p1")).findFirst().orElseThrow();
+        var second = docs.stream().filter(d -> d.getSubject().getReference().equals("Patient/p2")).findFirst().orElseThrow();
+        assertEquals("source", first.getType().getCodingFirstRep().getCode());
+        assertEquals(List.of("unprocessed"), codes(first));
+        assertEquals("fallback", second.getType().getCodingFirstRep().getCode());
+        assertEquals(List.of("custom"), codes(second));
+        assertFalse(report.documentIssues.isEmpty());
+        assertFalse(report.hasErrors());
     }
     @Test public void embedsOnlyOnJaAndOtherwiseDoesNotReadTheFile() throws Exception {
         Path file = temp.newFile("source.txt").toPath(); Files.writeString(file, "Datei ä");

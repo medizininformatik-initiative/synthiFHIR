@@ -1,3 +1,4 @@
+import { DocumentSettings } from './DocumentSettings'
 import { BulkOutputSettings } from './BulkOutputSettings'
 import identifierBindings from '../../catalog/options/identifier-bindings.json'
 import { SavedConfigurations } from './SavedConfigurations'
@@ -41,7 +42,11 @@ const groups = [
 const resources = groups.flatMap((group) =>
   contract.resources.filter((r) => r.group === group.id)
 )
-const editorResources = resources.filter(r => r.id !== 'Location')
+const editorResources = resources
+  .filter(r => r.id !== 'Location' && r.id !== 'Consent' && r.group !== 'medication')
+  .flatMap(r => r.id === 'Observation.other'
+    ? [r, ...resources.filter(resource => resource.group === 'medication'), resources.find(resource => resource.id === 'Consent')!]
+    : [r])
 const contactSupport = [
   { id: 'Organization', labelKey: 'app.config.organization' },
   { id: 'Location', labelKey: 'resource.Location.label' }
@@ -536,7 +541,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 <div key={r.id}>
                   {(index === 0 || editorResources[index - 1].group !== r.group) && (
                     <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-teal-800">
-                      {t(groups.find((g) => g.id === r.group)!.key)}
+                      {t(r.id === 'Consent' ? 'app.config.group.otherResources' : groups.find((g) => g.id === r.group)!.key)}
                     </h3>
                   )}
                   <section
@@ -560,7 +565,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                     {r.classCode && <>
                       <p className="mb-2 text-sm text-slate-600">{t('app.config.encounterEndSummary')}</p>
                     </>}
-                    {resourceOptions(r.id).map((option) => (
+                    {resourceOptions(r.id).filter(option => option.control !== 'document').map((option) => (
                       <OptionControl
                         key={option.id}
                         option={option}
@@ -569,6 +574,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                         t={t}
                       />
                     ))}
+                    {r.id === 'DocumentReference' && <DocumentSettings config={config} update={update} t={t} />}
                     {r.id === 'Encounter' && contactSupport.map(child => (
                       <section key={child.id} id={`resource-${child.id}`} className="mt-5 scroll-mt-6 rounded-lg border border-slate-200 p-4">
                         <h4 className="mb-2 text-base font-semibold">{t(child.labelKey)}
