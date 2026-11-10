@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Plus, Minus } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { options, resourceEnabled, type Configuration, type Value, type DocumentCoding } from './configuration'
 import { typePresets, nlpPresets, nlpCodes, nlpExtension, nlpSystem, statusHints } from './document-settings'
@@ -42,7 +43,7 @@ export function DocumentSettings({ config, update, t }: {
           </div>
           <p className="text-sm text-slate-600">{t('document.free')}</p>
           {rows.map((row, index) => <div key={index} className="flex flex-wrap items-end gap-2 rounded-lg bg-slate-50 p-3">
-            {(group === 'type' ? ['system', 'code', 'display'] : ['code']).map(field => <label key={field} className="min-w-40 flex-1 text-xs">
+            {(group === 'type' ? ['system', 'code', 'display'] : ['code']).map(field => <label key={field} className={field === 'system' ? 'min-w-48 flex-[2] text-xs' : 'min-w-32 flex-1 text-xs'}>
               {t(`document.${field}`)} {index + 1}
               <input className={`${inputClass} mt-1`} value={typeof row === 'string' ? row : row[field as keyof DocumentCoding] ?? ''}
                 list={`${prefix}.${field}.${index}`} onChange={event => changeRow(index, field, event.target.value)} />
@@ -50,9 +51,9 @@ export function DocumentSettings({ config, update, t }: {
                 {(group === 'nlp' ? nlpCodes : typePresets.combined.filter(c => field === 'system' || c.system === (row as DocumentCoding).system).map(c => c[field as keyof DocumentCoding]!)).map(value => <option key={value} value={value} />)}
               </datalist>
             </label>)}
-            <Button type="button" variant="outline" aria-label={`${t('document.remove')} ${index + 1}`} onClick={() => update(`${prefix}.values`, rows.filter((_, i) => i !== index) as Value)}>{t('document.remove')}</Button>
+            <Button type="button" variant="outline" className="w-[var(--control-height)] shrink-0 px-0" title={t('document.remove')} aria-label={`${t('document.remove')} ${index + 1}`} onClick={() => update(`${prefix}.values`, rows.filter((_, i) => i !== index) as Value)}><Minus className="h-4 w-4" aria-hidden="true" /></Button>
           </div>)}
-          <Button type="button" variant="outline" onClick={() => update(`${prefix}.values`, group === 'type' ? [...rows as DocumentCoding[], { system: '', code: '', display: '' }] : [...rows as string[], ''])}>{t('document.add')}</Button>
+          <Button type="button" variant="outline" className="w-[var(--control-height)] px-0" title={t('document.add')} aria-label={t('document.add')} onClick={() => update(`${prefix}.values`, group === 'type' ? [...rows as DocumentCoding[], { system: '', code: '', display: '' }] : [...rows as string[], ''])}><Plus className="h-4 w-4" aria-hidden="true" /></Button>
         </fieldset>
         {group === 'nlp' && <>
           {!inactive && statusHints(rows as string[]).map((hint, i) => <p key={i} role="status" className="mt-2 text-sm text-amber-800">{t(hint.key, hint.params)}</p>)}
