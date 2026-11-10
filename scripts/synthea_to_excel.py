@@ -21,6 +21,7 @@ from diagnosis_mapping import map_diagnosis, mapping_metadata
 from clinical_import import prepare_clinical, SUPPORTED
 from clinical_events import prepare_events, prepare_documents, SHEETS
 from german_texts import localize_rows
+from document_mapping import finalize_documents
 from medication_products import require_external_output, require_external_path
 from synthea_movements import enrich
 from german_demographics import identity
@@ -220,10 +221,12 @@ def prepare(bundle, options=None, *, diagnostics=True):
     rows['DocumentReference'] = document_rows
     clinical_report['clinicalImports'].extend(document_report['clinicalImports'])
     clinical_report['documentIdentityChanges'] = document_report['documentIdentityChanges']
+    clinical_report['documentMappings'] = document_report['documentMappings']
     losses.extend(document_report['losses'])
     losses.extend(event_report['losses'])
     losses.extend(clinical_report.pop('losses'))
     translation_report = localize_rows(rows, demographics['address'])
+    finalize_documents(rows['DocumentReference'], clinical_report)
     from observation_mapping import decision as observation_decision, metadata as observation_metadata
     source_observations = {e['resource']['id']: e['resource'] for e in entries if e.get('resource', {}).get('resourceType') == 'Observation'}
     observation_mappings = []

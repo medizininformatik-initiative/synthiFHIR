@@ -103,7 +103,7 @@ def expected_fields(source, report):
         if row['Beschreibung']: r['conclusion'] = row['Beschreibung']
     from check_careplans import expected_plans
     for plan in expected_plans(rows['Behandlungsplan'], pid): result[plan['id']] = plan
-    for number, row in enumerate(rows['DocumentReference']):
+    for number, row in enumerate(row for row in rows['DocumentReference'] if row['Dokument-ID']):
         add('DocumentReference', row_id(row, 'DR', 'DOCUMENT_REFERENCE', number),
             content=[{'attachment': {'data': base64.b64encode(row['Dokumenttext'].encode()).decode()}}])
     days = shift_days(report)

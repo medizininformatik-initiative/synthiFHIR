@@ -19,7 +19,7 @@ See [running the workflow](synthea-workflow.md) or [importing bundles](synthea-m
 | Immunization | `Impfung` | ATC classification for the selected catalogue year, vaccine text, time, status, primary-source flag and patient/case association. |
 | DiagnosticReport | `Befundbericht` | First coding, times, status, resolvable result references and conclusion. |
 | CarePlan | `Behandlungsplan` | Title, description, status, intent, creation date, period and one clinical category; each activity uses its own row with text, coding, status, reason, dates and location display. |
-| DocumentReference | `DocumentReference` | First document type, status, date, first contact and embedded UTF-8 text, up to Excel's 32,767-character cell limit. |
+| DocumentReference | `DocumentReference` | All representable type codings, deterministic KDL/XDS enrichment, derived NLP statuses, status, date, first contact and embedded UTF-8 text, up to Excel's 32,767-character cell limit. |
 
 `Fall.loss.json` records omitted resources and unsupported details with source IDs.
 This includes AllergyIntolerance, Device, ImagingStudy, SupplyDelivery, CareTeam,
@@ -103,6 +103,51 @@ copyright Regenstrief Institute, Inc.; see the [LOINC license](https://loinc.org
 The importer stores codes, IDs and FHIR times in text cells. CSV quoting preserves
 line breaks, quotes and surrounding whitespace in document text. German identity
 and text projection are documented in their dedicated guides.
+
+## Document classification and processing status
+
+The importer retains source document type codings in their original order. Notes
+containing both LOINC `34117-2` (history and physical) and `51847-2` (evaluation
+and plan), as emitted by the pinned Synthea exporter, additionally receive KDL
+`AD010110` (Ärztlicher Verlaufsbericht) and XDS `BERI` (Arztberichte). This is a
+representative German classification for synthetic encounter notes, not an exact
+terminology equivalence. Existing system/code pairs are not added again. Unknown
+or partial type combinations retain their source classification; encounter class
+alone does not determine a document type.
+
+The versioned rules are in `scripts/mappings/synthea-documents.json`. Source
+coding metadata that has no input column, such as `version`, remains in the
+mapping report and is listed as a representation limit.
+
+Processing statuses are determined per document after identity replacement and
+German text localization:
+
+| Observed processing | NLP status added |
+| --- | --- |
+| No text change and no supplied NLP status | `unprocessed` |
+| Translation or another actual text change | `preprocessed`, `content-change` |
+| Actual replacement of a patient name with the generated identity | additionally `surrogated` |
+
+Existing codes from the MII NLP extension are retained, including unknown codes.
+When text changes, `unprocessed` is removed and the processing report records the
+change. Missing parent statuses in explicit source annotations are not repaired.
+Text embedding and type coding changes do not imply `format-change`. The importer
+does not add annotation codes such as `deid` or `semantic`; name substitution is
+not a general de-identification procedure. All decisions are deterministic.
+
+Excel and CSV contain the same document blocks: the first row carries the document
+ID, patient, encounter and attachment data; continuation rows carry additional
+codings and statuses. The two lists have independent lengths. See
+[document input blocks](template-input-contracts.md) for editing rules.
+
+The import report records the mapping catalogue version and hash in
+`documentMapping`. Each `documentMappings` entry records source codings, applied
+rules and approximations, actual identity replacement count, source/intermediate/
+final text hashes, translation changes and supplied/derived/output NLP codes.
+`documentIdentityChanges.targetTextSha256` describes the intermediate text after
+identity replacement; `documentMappings.targetTextSha256` describes the final
+localized text. Transfer checks verify complete text, coding lists and NLP status
+lists against this source-derived projection.
 
 ## Verification
 

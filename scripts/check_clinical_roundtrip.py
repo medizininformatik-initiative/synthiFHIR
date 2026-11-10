@@ -1,9 +1,11 @@
 """Verify the supported clinical projection independently of the saved report."""
 from collections import Counter
+import json
 from decimal import Decimal
 from clinical_import import prepare_clinical, SYSTEMS
 from medication_products import PZN
 from clinical_events import prepare_events, prepare_documents
+from document_mapping import finalize_documents, document_blocks, NLP_EXTENSION, NLP_SYSTEM
 from german_texts import GermanTexts, localize_rows
 from german_demographics import identity
 from check_output_selection import selected, enabled, event_id
@@ -21,6 +23,9 @@ def check_clinical(source, target, report, station_count):
     expected['clinicalImports'].extend(event_report['clinicalImports'])
     document_rows, document_report = prepare_documents(entries, pid, report['encounterNumbers'])
     localize_rows({'DocumentReference':document_rows})
+    finalize_documents(document_rows, document_report)
+    assert report.get('documentMappings') == document_report['documentMappings'], 'Document mapping report changed'
+    assert report.get('documentMapping') == document_report['documentMapping'], 'Document mapping catalogue changed'
     expected['clinicalImports'].extend(document_report['clinicalImports'])
     assert report.get('documentIdentityChanges') == document_report['documentIdentityChanges'], 'Document identity report changed'
     assert report.get('productCatalog') == expected['productCatalog'], 'Product catalogue changed; use the generation catalogue'
@@ -144,8 +149,40 @@ def check_clinical(source, target, report, station_count):
     from check_medication_selection import check_medication_references
     check_medication_references(rows['Medikation'], dst, options, report.get('outputPatient', pid.replace('_', '-')))
     import base64
-    assert Counter(row['Dokumenttext'] for row in document_rows if enabled(options, 'DOCUMENT_REFERENCE_ENABLED'))==Counter(
+    assert Counter(row['Dokumenttext'] for row in document_rows if row['Dokument-ID'] and enabled(options, 'DOCUMENT_REFERENCE_ENABLED'))==Counter(
         base64.b64decode(r['content'][0]['attachment']['data']).decode('utf-8')for r in dst if r['resourceType']=='DocumentReference'), 'Document text changed'
+    # Include the source-derived type and NLP lists, not only attachment text.
+    def expected_document(block):
+        codes = tuple((row['Dokumentcodesystem'], row['Dokumentcode'], row['Dokumentbezeichner'])
+                      for row in block if row['Dokumentcodesystem'] or row['Dokumentcode'])
+        text = '\n'.join(row['Dokumentbezeichner'] for row in block
+                         if not row['Dokumentcodesystem'] and not row['Dokumentcode'] and row['Dokumentbezeichner'])
+        statuses = tuple(row['NLPStatus'] for row in block if row['NLPStatus'])
+        type_mode = options.get('DOCUMENT_TYPE_MODE', 'input')
+        if type_mode == 'replace' or type_mode == 'fill' and not (codes or text):
+            codes = tuple((c.get('system', ''), c.get('code', ''), c.get('display', ''))
+                          for c in json.loads(options.get('DOCUMENT_TYPE_VALUES', '[]'))
+                          if any(c.get(k, '') for k in ('system', 'code', 'display')))
+            text = ''
+        nlp_mode = options.get('DOCUMENT_NLP_MODE', 'input')
+        if nlp_mode == 'omit':
+            statuses = ()
+        elif nlp_mode == 'replace' or nlp_mode == 'fill' and not statuses:
+            statuses = tuple(code for code in json.loads(options.get('DOCUMENT_NLP_VALUES', '[]')) if code.strip())
+        return block[0]['Dokumenttext'], codes, text, statuses
+    def actual_document(resource):
+        statuses = tuple(c['code'] for extension in resource.get('extension', [])
+                         if extension.get('url') == NLP_EXTENSION
+                         for c in extension.get('valueCodeableConcept', {}).get('coding', []))
+        for extension in resource.get('extension', []):
+            if extension.get('url') == NLP_EXTENSION:
+                assert all(c.get('system') == NLP_SYSTEM for c in extension['valueCodeableConcept']['coding']), 'NLP system changed'
+        codes = tuple((c.get('system', ''), c.get('code', ''), c.get('display', '')) for c in resource.get('type', {}).get('coding', []))
+        return (base64.b64decode(resource['content'][0]['attachment']['data']).decode('utf-8'),
+                codes, resource.get('type', {}).get('text', ''), statuses)
+    assert Counter(expected_document(block) for block in document_blocks(document_rows)
+                   if enabled(options, 'DOCUMENT_REFERENCE_ENABLED')) == Counter(
+        actual_document(r) for r in dst if r['resourceType'] == 'DocumentReference'), 'Document type codings or NLP statuses changed'
     from check_clinical_references import check_clinical_references
     check_clinical_references(source, dst, report, rows['Medikation'], document_rows)
     if options.get('ENCOUNTER_STATION_SERVICE_PROVIDER') == 'generate-reference':

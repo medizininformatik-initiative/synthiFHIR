@@ -37,7 +37,7 @@ def check_clinical_references(source, resources, report, medication_rows, docume
     sources.update({e['resource']['resourceType'] + '/' + e['resource']['id']: e['resource'] for e in source['entry']})
     imported_observations = {r['sourceId'] for r in report.get('clinicalImports', []) if r['resourceType'] == 'Observation'}
     documents = {}
-    for number, row in enumerate(document_rows, int(options.get('START_ID_DOCUMENT_REFERENCE', 1))):
+    for number, row in enumerate((row for row in document_rows if row['Dokument-ID']), int(options.get('START_ID_DOCUMENT_REFERENCE', 1))):
         documents[pid + ('-E-' + row['Fall-Nr'] if row['Fall-Nr'] else '') + '-DR-' + str(number)] = row
     from check_medication_transformations import transformed_medications
     medications = {r['id']: r for r in transformed_medications(medication_rows, options, pid)}
