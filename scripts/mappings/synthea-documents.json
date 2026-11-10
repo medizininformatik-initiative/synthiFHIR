@@ -1,0 +1,18 @@
+{
+  "id": "synthea-document-types-v1",
+  "source": "Synthea FhirR4.clinicalNote at f43a6745f5d8c4534eeb96ac2aaf494fec9cf856",
+  "rules": [
+    {
+      "id": "synthea-clinical-note",
+      "requires": [
+        {"system": "http://loinc.org", "code": "34117-2"},
+        {"system": "http://loinc.org", "code": "51847-2"}
+      ],
+      "add": [
+        {"system": "http://dvmd.de/fhir/CodeSystem/kdl", "code": "AD010110", "display": "Ärztlicher Verlaufsbericht"},
+        {"system": "http://ihe-d.de/CodeSystems/IHEXDStypeCode", "code": "BERI", "display": "Arztberichte"}
+      ],
+      "approximation": "Representative German clinical progress report classification for Synthea encounter notes; not an exact terminology equivalence. Source codings are retained."
+    }
+  ]
+}

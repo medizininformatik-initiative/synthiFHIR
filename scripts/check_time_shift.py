@@ -35,7 +35,7 @@ def temporal_expectations(source, report):
     for number, row in enumerate(rows['Prozedur']):
         result[identifier(row, 'P', 'PROCEDURE', number)] = ({'performedPeriod.start': row['Durchführungsbeginn'], 'performedPeriod.end': row['Ende']}
                                                                if row['Ende'] else {'performedDateTime': row['Durchführungsbeginn']})
-    for number, row in enumerate(rows['DocumentReference']):
+    for number, row in enumerate(row for row in rows['DocumentReference'] if row['Dokument-ID']):
         result[identifier(row, 'DR', 'DOCUMENT_REFERENCE', number)] = {'date': row['Ausgabezeitpunkt']}
     from check_medication_transformations import transformed_medications
     for medication in transformed_medications(rows['Medikation'], options, pid):
