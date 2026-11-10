@@ -170,13 +170,16 @@ For a running local portal containing synthetic female Patients:
 
 ```sh
 python3 web/integration/smoke_portal_query.py /absolute/credentials.json
-python3 web/integration/smoke_torch_profile.py PATIENT_ID
 ```
 
-The first probe authenticates with Keycloak, checks that anonymous queries are
+The portal probe authenticates with Keycloak, checks that anonymous queries are
 rejected, and compares a real portal CQL query with an independent Blaze FHIR
-search. The second explicitly extracts the selected IDs and checks downloaded
-TORCH output. These probes create a portal query and extraction artifacts.
+search. It creates a portal query.
+
+The [TORCH extraction example](../integration/TORCH.md) starts the required Compose
+services and uses temporary synthetic patients to verify explicit patient selection,
+diagnosis values, field selection and missing-consent exclusion. It saves downloaded
+results and diagnostics and removes only its own fixture resources.
 
 The first ontology import and database migration can take several minutes.
 Inspect `docker compose -f web/compose.yml logs init-elasticsearch dataportal-backend`
