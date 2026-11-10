@@ -250,7 +250,13 @@ selections remain available and are commented in the Properties export.
 `CONTACT_DIAGNOSES_ROLES` selects codes from
 `http://terminology.hl7.org/CodeSystem/diagnosis-role`, recorded in
 `Encounter.diagnosis.use.coding.code`: CC, CM, AD, DD, pre-op, post-op and billing.
-The role belongs to the contact association. All roles are selected by default.
+The role belongs to the contact association. Selecting all listed roles (the default)
+means no role filter: contact links with missing or unrecognized roles are retained
+without assigning a role. Selecting a subset retains only links with a matching
+code from this code system; links without a matching role are omitted. Selecting
+no roles omits all Condition diagnosis links. The Condition resources themselves
+remain available. Missing input roles are never replaced with `CM`.
+
 Selected contact levels determine the targets automatically. An input contact
 already at the target level keeps its reference. Assignment upward follows the
 original parent hierarchy. Assignment downward uses `Condition.recordedDate`

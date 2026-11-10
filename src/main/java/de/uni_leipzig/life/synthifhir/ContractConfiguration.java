@@ -320,6 +320,14 @@ public final class ContractConfiguration {
         return binding.path("kind").asText().equals("java-property") && !binding.has("values") && !binding.has("semantics");
     }
 
+    boolean allChoicesSelected(String id) {
+        Set<String> selected = new HashSet<>();
+        effective(id).ifPresent(value -> value.forEach(item -> selected.add(item.asText())));
+        for (JsonNode choice : definitions.get(id).get("choices"))
+            if (!selected.contains(choice.asText())) return false;
+        return true;
+    }
+
     public List<String> unsupportedSettings() {
         List<String> errors = new ArrayList<>();
         definitions.forEach((id, option) -> {
