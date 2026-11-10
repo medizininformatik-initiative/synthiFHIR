@@ -704,7 +704,7 @@
         },
         "document.type.values": {
           "title": "Type codings",
-          "description": "Target: DocumentReference.type.coding. Each row creates one coding of the same document type.\n\nSystem: Code system identifier, e.g. the KDL or XDS system URL. Freely editable.\n\nCode: Value within that system, e.g. AD010110 or BERI. Select a suggestion or enter a free value.\n\nDisplay: Human-readable text in Coding.display; optional and freely editable.\n\nChanging one field does not automatically change the others.\n\n+ adds an empty row; − removes that row only. Completely empty rows create no coding.\n\nOrder and entered values are saved in the configuration, even when application is inactive.",
+          "description": "Each row creates one coding of the same document type.\n\nSystem: Code system identifier, e.g. the KDL or XDS system URL. Freely editable.\n\nCode: Value within that system, e.g. AD010110 or BERI. Select a suggestion or enter a free value.\n\nDisplay: Human-readable text in Coding.display; optional and freely editable.\n\nChanging one field does not automatically change the others.\n\n+ adds an empty row; − removes that row only. Completely empty rows create no coding.\n\nOrder and entered values are saved in the configuration, even when application is inactive.",
           "default": [],
           "type": "array",
           "items": {
@@ -736,7 +736,7 @@
         },
         "document.nlp.values": {
           "title": "NLP processing statuses",
-          "description": "Target: One NLP extension with valueCodeableConcept. Each row adds one coding to it.\n\nCode: Select a suggested status or enter your own code.\n\nExtension URL and coding system use the fixed MII URLs shown below.\n\nformat-change and content-change also require preprocessed. preanno, deid and semantic also require annotated.\n\nUnknown codes and missing parent statuses produce hints. Values are preserved; missing statuses are not added automatically.\n\n+ adds a row; − removes it. Empty status rows are skipped in the output.\n\nStatus values describe the document. They do not process or de-identify its text.\n\nThe list remains saved when application is inactive.",
+          "description": "All status rows become codings within a single NLP extension.\n\nCode: Select a suggested status or enter your own code.\n\nExtension URL and coding system use the fixed MII URLs shown below.\n\nformat-change and content-change also require preprocessed. preanno, deid and semantic also require annotated.\n\nUnknown codes and missing parent statuses produce hints. Values are preserved; missing statuses are not added automatically.\n\n+ adds a row; − removes it. Empty status rows are skipped in the output.\n\nStatus values describe the document. They do not process or de-identify its text.\n\nThe list remains saved when application is inactive.",
           "default": [],
           "type": "array",
           "items": {

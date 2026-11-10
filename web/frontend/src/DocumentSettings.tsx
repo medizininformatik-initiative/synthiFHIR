@@ -25,7 +25,7 @@ export function DocumentSettings({ config, update, t }: {
         group === 'nlp' ? (rows as string[]).map((row, i) => i === index ? value : row)
           : (rows as DocumentCoding[]).map((row, i) => i === index ? { ...row, [field]: value } : row))
       return <section key={group} aria-label={t(`option.${prefix}.values.label`)} className="rounded-lg border border-slate-200 p-4">
-        <div className="mb-2 flex items-center gap-2"><h4 className="font-semibold">{t(`option.${prefix}.values.label`)}</h4><Help text={t(`option.${prefix}.values.help`)} t={t} /></div>
+        <div className="mb-2 flex flex-wrap items-center gap-2"><h4 className="font-semibold">{t(`option.${prefix}.values.label`)}</h4><span className="min-w-0 break-all rounded border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-normal text-slate-600">{t('app.config.fhirResource', { resource: group === 'type' ? 'DocumentReference.type.coding' : 'DocumentReference.extension.valueCodeableConcept.coding' })}</span><Help text={t(`option.${prefix}.values.help`)} t={t} /></div>
         <div className="flex items-center gap-2"><label className="text-sm" htmlFor={`${prefix}.mode`}>{t(modeOption.labelKey)}</label><Help text={t(modeOption.helpKey)} t={t} /></div>
         <select id={`${prefix}.mode`} className={`${inputClass} mt-1`} disabled={!enabled} value={mode}
           onChange={event => update(`${prefix}.mode`, event.target.value)}>
