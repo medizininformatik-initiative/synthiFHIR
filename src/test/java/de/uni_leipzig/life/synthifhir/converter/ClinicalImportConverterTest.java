@@ -408,6 +408,10 @@ public class ClinicalImportConverterTest {
         Map<String,String> data = new LinkedHashMap<>();
         data.put("Patient-ID", "patient"); data.put("Fall-Nr", "1");
         for (Enum<?> c : columns) data.put(c.toString(), "");
+        if (columns instanceof DocumentReferenceConverter.DocumentReference_Columns[]) {
+            data.put("Dokument-ID", "document");
+            data.put("Embed", "Ja");
+        }
         data.putAll(values);
         StringWriter out = new StringWriter();
         try (CSVPrinter p = new CSVPrinter(out, CSVFormat.DEFAULT)) { p.printRecord(data.keySet()); p.printRecord(data.values()); }
@@ -687,7 +691,10 @@ public class ClinicalImportConverterTest {
                     null, new ConverterResult(options), null, options).convertInternal());
         resources.addAll(new ConditionConverter(row(Map.of(), ConditionConverter.Diagnosis_Columns.values()), null, new ConverterResult(options), null, options).convertInternal());
         resources.addAll(new ProcedureConverter(row(Map.of(), ProcedureConverter.Procedure_Columns.values()), null, new ConverterResult(options), null, options).convertInternal());
-        resources.addAll(new DocumentReferenceConverter(row(Map.of(), DocumentReferenceConverter.DocumentReference_Columns.values()), null, new ConverterResult(options), null, options).convertInternal());
+        // Documents require an explicit content source under the document block contract.
+        assertThrows(IllegalArgumentException.class, () -> new DocumentReferenceConverter(
+                row(Map.of(), DocumentReferenceConverter.DocumentReference_Columns.values()), null,
+                new ConverterResult(options), null, options).convertInternal());
         resources.addAll(new ObservationLaboratoryConverter(row(Map.of(), ObservationLaboratoryConverter.ObservationLaboratory_Columns.values()), null, new ConverterResult(options), null, options).convertInternal());
         resources.addAll(new ObservationVitalSignsConverter(row(Map.of(), ObservationVitalSignsConverter.ObservationVitalSigns_Columns.values()), null, new ConverterResult(options), null, options).convertInternal());
         var event = row(Map.of("Eintrag ID", "empty"), ClinicalEventConverter.Columns.values());
@@ -746,7 +753,7 @@ public class ClinicalImportConverterTest {
         assertFalse(procedure.getCode().getCodingFirstRep().hasSystem());
         assertFalse(procedure.getCode().getCodingFirstRep().hasVersion());
         assertFalse(procedure.hasCategory());
-        DocumentReference document = (DocumentReference)new DocumentReferenceConverter(row(Map.of("Dokumentbezeichner", "Freier Dokumenttyp", "Ausgabezeitpunkt", "!dar:not-asked"),
+        DocumentReference document = (DocumentReference)new DocumentReferenceConverter(row(Map.of("Dokumentbezeichner", "Freier Dokumenttyp", "Ausgabezeitpunkt", "!dar:not-asked", "Dokumenttext", "Test"),
                 DocumentReferenceConverter.DocumentReference_Columns.values()), null, new ConverterResult(options), null, options).convertInternal().get(0);
         assertEquals("Freier Dokumenttyp", document.getType().getText());
         assertFalse(document.getType().hasCoding());

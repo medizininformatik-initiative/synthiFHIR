@@ -258,11 +258,17 @@ public class ExcelTemplateValidator {
         Map<String, Integer> columns = columnIndexes(sheet);
         String previousPatientId = null;
         Set<String> entryIds = new HashSet<>();
+        var documents = new de.uni_leipzig.life.synthifhir.converter.DocumentRows();
         for (RowView row : sheet) {
             int rowIndex = row.getRowNum();
             if (rowIndex == 0) continue;
             if (isEmptyDataRow(row, columns)) {
                 continue;
+            }
+            if ("DocumentReference".equals(sheetName)) {
+                var errors = documents.accept(field -> get(row, columns, field));
+                for (String error : errors) add(result, ERROR, sheetName, rowIndex + 1, "Dokument-ID", error);
+                if (!errors.isEmpty()) continue;
             }
             String patientId = get(row, columns, "Patient-ID");
             if (isBlank(patientId)) {
@@ -656,8 +662,8 @@ public class ExcelTemplateValidator {
         headers.put("Medikation", Arrays.asList("Patient-ID", "Fall-Nr", "Medikationstyp", "Präparatbezeichnung", "Präparatcode", "Präparatcodesystem", "ATC-Code", "ATC-Version", "Darreichungsform", "Wirkstoffcode", "Wirkstoffcodesystem", "Status", "Absicht", "Dokumentationszeitpunkt", "Beginn", "Ende", "Einzeldosis", "Dosiereinheit", "Dosiereinheitcodesystem", "Dosen pro Tag", "Dosierungstext", "Erklärung/Ausfüllhilfe"));
         headers.put("Klinische Dokumentation", Arrays.asList("Patient-ID", "Fall-Nr", "Bezeichner", "Untersuchungscode", "Codesystem", "Zusatzcode", "Zusatzcodesystem", "Wert",
                 "Einheit", "Zeitstempel", "Werttyp", "Wertcode", "Wertcodesystem", "Kategorie", "Status", "Untersuchung ID", "Komponente von", "Ausgabezeitpunkt", "Einheitencode", "Einheitencodesystem", "Erklärung/Ausfüllhilfe"));
-        headers.put("DocumentReference", Arrays.asList("Patient-ID", "Fall-Nr", "Dateipfad", "Embed",
-                "Dokumenttext", "Status", "Ausgabezeitpunkt", "Dokumentcode", "Dokumentcodesystem", "Dokumentbezeichner", "Erklärung/Ausfüllhilfe"));
+        headers.put("DocumentReference", Arrays.asList("Dokument-ID", "Patient-ID", "Fall-Nr", "Dateipfad", "Embed",
+                "Dokumenttext", "Status", "Ausgabezeitpunkt", "Dokumentcode", "Dokumentcodesystem", "Dokumentbezeichner", "NLPStatus", "Erklärung/Ausfüllhilfe"));
         headers.put("Impfung", Arrays.asList("Patient-ID", "Fall-Nr", "Eintrag ID", "Bezeichner", "Code", "Codesystem", "Zeitpunkt", "Status", "Primärquelle", "Version", "Erklärung/Ausfüllhilfe"));
         headers.put("Befundbericht", Arrays.asList("Patient-ID", "Fall-Nr", "Eintrag ID", "Bezeichner", "Code", "Codesystem", "Zeitpunkt", "Status", "Ausgabezeitpunkt", "Ergebnisse", "Beschreibung", "Erklärung/Ausfüllhilfe"));
         headers.put("Behandlungsplan", Arrays.asList("Patient-ID", "Fall-Nr", "Titel", "Beschreibung", "Planstatus", "Absicht", "Erstellungsdatum", "Beginn", "Ende", "Kategorietext", "Kategoriecode", "Kategoriecodesystem", "Kategorieversion", "Aktivitätstext", "Aktivitätscode", "Aktivitätscodesystem", "Aktivitätsversion", "Aktivitätsstatus", "Aktivitätsstatusgrund", "Aktivitätsbeginn", "Aktivitätsende", "Aktivitätsort", "Erklärung/Ausfüllhilfe"));

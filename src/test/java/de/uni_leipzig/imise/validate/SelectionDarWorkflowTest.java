@@ -65,6 +65,33 @@ public class SelectionDarWorkflowTest {
         return json;
     }
 
+    @Test public void documentBlocksInStarterWorkbookProduceBothCodingsAndNlpExtension() throws Exception {
+        var documents = convert("").values().stream().filter(DocumentReference.class::isInstance)
+                .map(DocumentReference.class::cast).toList();
+        assertEquals(3, documents.size());
+        int embedded = 0, linked = 0;
+        for (var document : documents) {
+            var attachment = document.getContentFirstRep().getAttachment();
+            if (attachment.hasData()) {
+                embedded++;
+                assertEquals(2, document.getType().getCoding().size());
+                assertEquals("Ärztlicher Verlaufsbericht", document.getType().getCodingFirstRep().getDisplay());
+                var extension = document.getExtensionByUrl(
+                        de.uni_leipzig.life.synthifhir.converter.DocumentReferenceConverter.NLP_EXTENSION);
+                assertNotNull(extension);
+                assertEquals(List.of("preprocessed", "format-change", "surrogated"),
+                        ((CodeableConcept)extension.getValue()).getCoding().stream().map(Coding::getCode).toList());
+            } else {
+                linked++;
+                assertTrue(attachment.hasUrl());
+                assertFalse(attachment.hasSize());
+                assertFalse(attachment.hasCreation());
+            }
+        }
+        assertEquals(2, embedded);
+        assertEquals(1, linked);
+    }
+
     private Map<String, Resource> read(Path root, String extension) throws Exception {
         Map<String, Resource> result = new LinkedHashMap<>();
         try (var files = Files.walk(root)) {

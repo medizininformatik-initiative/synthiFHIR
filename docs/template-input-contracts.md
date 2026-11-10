@@ -121,12 +121,67 @@ disable all other resource groups, including all three Observation groups.
 - `Prozedur`: procedure code/system, optional additional coding, performed start/end,
   status and category. Empty codesystem, version and category cells are omitted.
   Contact periods and procedure periods are separate inputs.
-- `DocumentReference`: `Dokumenttext` supplies embedded text. Otherwise,
-  `Dateipfad` and `Embed` select file content. Document type, date and status
-  describe the document. Empty values are omitted; no current time, document type,
-  category or final status is inferred. A file supplies its actual content metadata.
+- `DocumentReference`: see [Document blocks](#document-blocks) for repeated codings,
+  NLP processing status and embedded content or file references.
 - `Impfung` and `Befundbericht`: event code/system, time and
   resource-specific status fields. See the workbook's field help.
+
+## Document blocks
+
+The `DocumentReference` sheet and CSV table require a `Dokument-ID` column.
+An explicit ID starts one document. Following rows with an empty ID append
+independent type codings and NLP status codes to that document. IDs must be unique
+within the table. Empty rows and help-only rows are ignored. A continuation needs
+a preceding valid document start.
+
+Enter `Patient-ID`, optional `Fall-Nr`, `Dateipfad`, `Embed`, `Dokumenttext`,
+`Status` and `Ausgabezeitpunkt` on the start row only. Each document start supplies
+its own patient reference. The document key groups input rows; output FHIR IDs
+follow the configured document ID sequence. Document type, date and status are
+supplied explicitly.
+
+Each row may supply one `Dokumentcode`, `Dokumentcodesystem` and
+`Dokumentbezeichner`, and one `NLPStatus`. Type codings and NLP codes are collected
+independently: sharing an input row does not relate them to each other. A document
+label accompanying a coding becomes its `display`; a label without a coding is
+retained in `type.text`. Multiple free labels are joined with line breaks.
+
+| Dokument-ID | Patient-ID | Embed | Dokumenttext | Dokumentcode | Dokumentcodesystem | NLPStatus |
+| --- | --- | --- | --- | --- | --- | --- |
+| document-1 | patient-1 | Ja | Synthetic clinical text | AD010110 | http://dvmd.de/fhir/CodeSystem/kdl | preprocessed |
+| | | | | BERI | http://ihe-d.de/CodeSystems/IHEXDStypeCode | format-change |
+| | | | | | | surrogated |
+
+`Embed` controls content for the whole document:
+
+- `Ja` (case-insensitive): embed `Dokumenttext` as UTF-8 text. When text is empty,
+  read and embed the file at `Dateipfad`. A text or path is required.
+- `Nein` or empty: require `Dateipfad` and output its file URL. The converter does
+  not read the file or embed a supplied `Dokumenttext`. File size and creation
+  time are omitted in this mode. The receiver needs access to the referenced file.
+
+Paths are resolved in the converter's filesystem, including its container when
+running in Docker. The bundled `input/document-example.txt` supplies an embedded
+file example. The starter workbook also includes inline text and URL-only examples.
+
+NLP codes become separate `coding` entries in one extension's
+`valueCodeableConcept`. The converter sets the fixed canonical identifiers:
+
+- Extension: `https://www.medizininformatik-initiative.de/fhir/ext/modul-dokument/StructureDefinition/mii-ex-dokument-nlp-processing-status`
+- Coding system: `https://www.medizininformatik-initiative.de/fhir/ext/modul-dokument/CodeSystem/mii-cs-dokument-nlp-processing-status`
+
+With no NLP code, the extension is absent. The `Codes` sheet suggests individual
+codes and common document type codes/systems, while allowing free input.
+`format-change` and `content-change` require `preprocessed`; `preanno`, `deid`
+and `semantic` require `annotated`. Unknown codes and missing parent codes are
+listed in the import report's `documentIssues`, without changing or excluding
+explicit values. Processing status describes supplied content; it does not perform
+NLP processing or de-identification. `annotated` with `deid` describes annotations;
+`surrogated` describes replacement of selected information.
+
+The terminology follows the [MII NLP processing status definition and examples](https://simplifier.net/guide/medizininformatikinitiative-dokument/MIIIGModulDokument/TechnischeImplementierung/FHIRProfile/NLP-Processing-Status-Extension.page.md?version=preview)
+(version 2027.0.0-ballot.2). Adding this extension does not by itself establish
+conformance to the complete MII DocumentReference profile.
 
 ## General treatment plans
 

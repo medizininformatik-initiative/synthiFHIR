@@ -12,6 +12,24 @@ from workbook_absent import display, canonical, CODES
 ROOT = Path(__file__).resolve().parents[2]
 
 class WorkbookSelectionsTest(unittest.TestCase):
+    def test_document_status_and_type_lists_allow_negative_test_inputs(self):
+        from clinical_selections import validation_ops, LISTS
+        expected = {'unprocessed', 'preprocessed', 'format-change', 'content-change',
+                    'annotated', 'preanno', 'deid', 'semantic', 'surrogated'}
+        self.assertEqual(expected, set(LISTS['BR'][1:]))
+        for filename in ('FHIR_Testdatengenerator_Vorlage.xlsx', 'input/FHIR_Testdatengenerator_Vorlage.xlsx',
+                         'FHIR_Testdatengenerator_Interpolar_Demo.xlsx'):
+            sheets = read_sheets(ROOT / filename)
+            headers = {v: k[:-1] for k, v in sheets['DocumentReference'].items() if re.fullmatch('[A-Z]+1', k)}
+            self.assertIn('Dokument-ID', headers)
+            operations = validation_ops(sheets)
+            for field, source in [('NLPStatus', 'BR'), ('Dokumentcode', 'BS'), ('Dokumentcodesystem', 'BT')]:
+                matching = [op for op in operations if op.startswith(f'validation\tDocumentReference\t{headers[field]}2:')]
+                self.assertEqual(1, len(matching))
+                self.assertTrue(matching[0].endswith('\tfalse'))
+                for row, code in enumerate(LISTS[source][1:], 30):
+                    self.assertEqual(code, sheets['Codes'][f'{source}{row}'])
+
     def test_presentation_does_not_rewrite_narratives_or_boolean_results(self):
         self.assertEqual('Unbekannt (Data Absent Reason)', display('Medikation', 'Einzeldosis', '!dar:unknown', {}))
         self.assertEqual('!dar:unknown', display('Medikation', 'Dosierungstext', '!dar:unknown', {}))
