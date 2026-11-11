@@ -6,7 +6,7 @@ import { exportPropertiesConfiguration } from './configuration-properties'
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Upload, RotateCcw, Check } from 'lucide-react'
 import { Button } from './components/ui/button'
-import { Help } from './Help'
+import { Help, Tooltip } from './Help'
 import { IdentifierPatternControl } from './IdentifierPatternControl'
 import { translate, type Language, type TextKey, type Message } from './i18n'
 import {
@@ -379,23 +379,24 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
         </p>
         <fieldset disabled={readOnly}><SavedConfigurations editorActions={<>
           {issues.length > 0 ? (
-            <Button variant="outline" disabled>
+            <Button tooltip={t('tooltip.export')} variant="outline" disabled>
               <Download size={15} />
               {t('app.config.export')}
             </Button>
           ) : (
-            <Button asChild variant="outline">
+            <Button tooltip={t('tooltip.export')} asChild variant="outline">
               <a href={exportHref} download="converter-configuration.config">
                 <Download size={15} />
                 {t('app.config.export')}
               </a>
             </Button>
           )}
-          <Button variant="outline" onClick={() => importRef.current?.click()}>
+          <Button tooltip={t('tooltip.import')} variant="outline" onClick={() => importRef.current?.click()}>
             <Upload size={15} />
             {t('app.config.import')}
           </Button>
           <Button
+            tooltip={t('tooltip.reset')}
             variant="outline"
             onClick={() => {
               setConfig(defaults())
@@ -444,12 +445,12 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
       <div
         role="tablist"
         aria-label={t('app.config.title')}
-        className="flex flex-wrap gap-2 border-y border-slate-200 bg-slate-100 p-3"
+        className="workbench-tabs workbench-tabs-inset"
       >
         {contract.sections.map((section, index) => (
-          <button
-            key={section.id}
+          <Tooltip key={section.id} text={t(`tooltip.tab.${section.id}`)}><button
             id={`tab-${section.id}`}
+            type="button"
             role="tab"
             aria-selected={tab === section.id}
             aria-controls={`panel-${section.id}`}
@@ -472,10 +473,10 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 .getElementById(`tab-${contract.sections[next].id}`)
                 ?.focus()
             }}
-            className={`rounded-lg border px-3 py-1 min-h-[var(--control-height)] text-sm font-medium shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${tab === section.id ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-teal-700 hover:bg-teal-50 hover:text-teal-900'}`}
+            className="workbench-tab"
           >
             {t(section.labelKey)}
-          </button>
+          </button></Tooltip>
         ))}
       </div>
       <div

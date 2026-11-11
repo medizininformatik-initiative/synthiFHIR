@@ -83,8 +83,8 @@ export function InputSelection({ language, source, onChange, onBusy, onKindChang
       </select>
     </label>
     <div className="mt-2 flex gap-2">
-    <Button className="min-w-0 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-4" variant="outline" disabled={uploading || removing} onClick={() => fileInput.current?.click()}><Upload size={16}/>{t(uploading ? 'app.inspectingWorkbook' : 'app.uploadWorkbook')}</Button>
-    {selected && <Button className="min-w-0 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-4" variant="outline" disabled={uploading || removing} onClick={() => void remove(selected)}>{t('app.inputRemove')}</Button>}
+    <Button tooltip={t('tooltip.inputUpload')} className="min-w-0 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-4" variant="outline" disabled={uploading || removing} onClick={() => fileInput.current?.click()}><Upload size={16}/>{t(uploading ? 'app.inspectingWorkbook' : 'app.uploadWorkbook')}</Button>
+    {selected && <Button tooltip={t('tooltip.inputRemove')} className="min-w-0 flex-1 whitespace-nowrap px-2 sm:flex-none sm:px-4" variant="outline" disabled={uploading || removing} onClick={() => void remove(selected)}>{t('app.inputRemove')}</Button>}
     </div>
     <input ref={fileInput} hidden type="file" accept=".xlsx,.zip,.json" aria-label={t('app.uploadWorkbook')} onChange={e => void upload(e.target.files?.[0])}/>
     <p className="mt-2 text-xs text-slate-500">{t('app.uploadWorkbookLimit')}</p>

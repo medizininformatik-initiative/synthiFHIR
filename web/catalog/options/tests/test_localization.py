@@ -48,7 +48,10 @@ class LocalizationTest(unittest.TestCase):
             required.add(contract['dar']['codeLabelKeyPattern'].format(code=code['code']))
         # Include keys used by the interface and its error helpers.
         for source in (ROOT / '../../frontend/src').rglob('*.ts*'):
-            required.update(re.findall(r"['\"]((?:app|identifier|dar|document)\.[\w.]+)['\"]", source.read_text()))
+            required.update(re.findall(r"['\"]((?:app|identifier|dar|document|tooltip)\.[\w.]+)['\"]", source.read_text()))
+        required.update('tooltip.tab.' + section['id'] for section in contract['sections'])
+        required.update('tooltip.tab.' + tab for tab in ('generate', 'runs', 'services'))
+        required.update('tooltip.saved.' + action for action in ('create', 'load', 'replace', 'rename', 'duplicate', 'delete'))
         required.update('identifier.coding.' + field for field in ('system', 'code', 'display'))
         required.update('app.outcomes.' + status for status in (
             'succeeded', 'failed', 'cancelled', 'interrupted', 'passed',

@@ -51,9 +51,9 @@ export function DocumentSettings({ config, update, t }: {
                 {(group === 'nlp' ? nlpCodes : typePresets.combined.filter(c => field === 'system' || c.system === (row as DocumentCoding).system).map(c => c[field as keyof DocumentCoding]!)).map(value => <option key={value} value={value} />)}
               </datalist>
             </label>)}
-            <Button type="button" variant="outline" className="w-[var(--control-height)] shrink-0 px-0" title={t('document.remove')} aria-label={`${t('document.remove')} ${index + 1}`} onClick={() => update(`${prefix}.values`, rows.filter((_, i) => i !== index) as Value)}><Minus className="h-4 w-4" aria-hidden="true" /></Button>
+            <Button type="button" variant="outline" className="w-[var(--control-height)] shrink-0 px-0" tooltip={t('document.remove')} aria-label={`${t('document.remove')} ${index + 1}`} onClick={() => update(`${prefix}.values`, rows.filter((_, i) => i !== index) as Value)}><Minus className="h-4 w-4" aria-hidden="true" /></Button>
           </div>)}
-          <Button type="button" variant="outline" className="w-[var(--control-height)] px-0" title={t('document.add')} aria-label={t('document.add')} onClick={() => update(`${prefix}.values`, group === 'type' ? [...rows as DocumentCoding[], { system: '', code: '', display: '' }] : [...rows as string[], ''])}><Plus className="h-4 w-4" aria-hidden="true" /></Button>
+          <Button type="button" variant="outline" className="w-[var(--control-height)] px-0" tooltip={t('document.add')} aria-label={t('document.add')} onClick={() => update(`${prefix}.values`, group === 'type' ? [...rows as DocumentCoding[], { system: '', code: '', display: '' }] : [...rows as string[], ''])}><Plus className="h-4 w-4" aria-hidden="true" /></Button>
         </fieldset>
         {group === 'nlp' && <>
           {!inactive && statusHints(rows as string[]).map((hint, i) => <p key={i} role="status" className="mt-2 text-sm text-amber-800">{t(hint.key, hint.params)}</p>)}
