@@ -6,7 +6,7 @@ import { exportPropertiesConfiguration } from './configuration-properties'
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2, Download, Upload, RotateCcw, Check } from 'lucide-react'
 import { Button } from './components/ui/button'
-import { Help } from './Help'
+import { Help, Tooltip } from './Help'
 import { IdentifierPatternControl } from './IdentifierPatternControl'
 import { translate, type Language, type TextKey, type Message } from './i18n'
 import {
@@ -379,23 +379,24 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
         </p>
         <fieldset disabled={readOnly}><SavedConfigurations editorActions={<>
           {issues.length > 0 ? (
-            <Button variant="outline" disabled>
+            <Button tooltip={t('tooltip.export')} variant="outline" disabled>
               <Download size={15} />
               {t('app.config.export')}
             </Button>
           ) : (
-            <Button asChild variant="outline">
+            <Button tooltip={t('tooltip.export')} asChild variant="outline">
               <a href={exportHref} download="converter-configuration.config">
                 <Download size={15} />
                 {t('app.config.export')}
               </a>
             </Button>
           )}
-          <Button variant="outline" onClick={() => importRef.current?.click()}>
+          <Button tooltip={t('tooltip.import')} variant="outline" onClick={() => importRef.current?.click()}>
             <Upload size={15} />
             {t('app.config.import')}
           </Button>
           <Button
+            tooltip={t('tooltip.reset')}
             variant="outline"
             onClick={() => {
               setConfig(defaults())
@@ -447,8 +448,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
         className="workbench-tabs workbench-tabs-inset"
       >
         {contract.sections.map((section, index) => (
-          <button
-            key={section.id}
+          <Tooltip key={section.id} text={t(`tooltip.tab.${section.id}`)}><button
             id={`tab-${section.id}`}
             type="button"
             role="tab"
@@ -476,7 +476,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
             className="workbench-tab"
           >
             {t(section.labelKey)}
-          </button>
+          </button></Tooltip>
         ))}
       </div>
       <div

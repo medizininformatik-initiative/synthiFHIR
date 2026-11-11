@@ -13,7 +13,7 @@ import './index.css'
 import { ListExpansion } from './ListExpansion'
 import { ServiceLinks } from './ServiceLinks'
 import { FhirUploads } from './FhirUploads'
-import { Help } from './Help'
+import { Help, Tooltip } from './Help'
 import { BulkPackages } from './BulkPackages'
 import { DatasetResults } from './DatasetResults'
 import { GenerationSettings, type Generation } from './GenerationSettings'
@@ -274,10 +274,10 @@ function App() {
       <label className="ml-auto flex flex-col gap-1 text-sm">{t('app.language')}<select className="rounded-lg border border-slate-300 bg-white p-2" value={language} onChange={e => setLanguage(e.target.value as Language)}><option value="de">{t('app.language.de')}</option><option value="en">{t('app.language.en')}</option></select></label>
     </header>
     <div role="tablist" aria-label={t('app.navigation')} className="workbench-tabs mb-6">
-      {(['generate', 'runs', 'services'] as const).map((tab, index, tabs) => <button key={tab} type="button" role="tab" id={`main-tab-${tab}`} aria-controls={`main-panel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1} onClick={() => setActiveTab(tab)} onKeyDown={event => {
+      {(['generate', 'runs', 'services'] as const).map((tab, index, tabs) => <Tooltip key={tab} text={t(`tooltip.tab.${tab}`)}><button type="button" role="tab" id={`main-tab-${tab}`} aria-controls={`main-panel-${tab}`} aria-selected={activeTab === tab} tabIndex={activeTab === tab ? 0 : -1} onClick={() => setActiveTab(tab)} onKeyDown={event => {
         const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : null
         if (next !== null) { event.preventDefault(); setActiveTab(tabs[next]); document.getElementById(`main-tab-${tabs[next]}`)?.focus() }
-      }} className="workbench-tab">{t(tab === 'generate' ? 'app.tabs.generate' : tab === 'runs' ? 'app.runs' : 'app.tabs.services')}</button>)}
+      }} className="workbench-tab">{t(tab === 'generate' ? 'app.tabs.generate' : tab === 'runs' ? 'app.runs' : 'app.tabs.services')}</button></Tooltip>)}
     </div>
     {alert && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-4 text-red-800">{t(alert.key, alert.params)}</p>}
     <div role="tabpanel" id="main-panel-generate" aria-labelledby="main-tab-generate" hidden={activeTab !== 'generate'}>
@@ -323,7 +323,7 @@ function App() {
             {job?.table_format && <p className="text-sm">{t('app.tableFormat')}: {t(job.table_format === 'csv' ? 'app.tableFormat.csv' : 'app.tableFormat.excel')}</p>}
             {job && duration(job) && <p className="mb-4 text-sm">{duration(job)}</p>}
             {job && <p className="mb-3 text-sm text-slate-500">{t('app.status')}: {t(stateKey(job.state))}{job.exit_code !== null ? ` · ${t('app.exitCode')}: ${job.exit_code}` : ''}{job.state === 'interrupted' ? ` · ${t('app.retry')}` : ''}</p>}
-            <div className="flex flex-wrap items-center gap-3">{job && <div className="flex flex-wrap gap-2">{['succeeded', 'failed'].includes(job.state) && !!job.workbook_count && <><Button variant="outline" disabled={busy} onClick={() => void loadRun(true)}>{t('app.replay.action')}</Button><Help text={t('app.replay.help', { count: job.workbook_count })} t={key => t(key as TextKey)}/></>}{!['queued','running'].includes(job.state) && <Button variant="outline" disabled={busy || job.editor_available === false} onClick={() => void loadRun()}>{t('app.loadRun')}</Button>}{!['queued','running'].includes(job.state) && <><Help text={t('app.loadRunHelp')} t={key => t(key as TextKey)}/><Button variant="outline" disabled={busy} onClick={() => deleteDialog.current?.showModal()}>{t('app.deleteRun')}</Button></>}</div>}</div>
+            <div className="flex flex-wrap items-center gap-3">{job && <div className="flex flex-wrap gap-2">{['succeeded', 'failed'].includes(job.state) && !!job.workbook_count && <><Button tooltip={t('tooltip.replay')} variant="outline" disabled={busy} onClick={() => void loadRun(true)}>{t('app.replay.action')}</Button></>}{!['queued','running'].includes(job.state) && <Button tooltip={t('tooltip.loadRun')} variant="outline" disabled={busy || job.editor_available === false} onClick={() => void loadRun()}>{t('app.loadRun')}</Button>}{!['queued','running'].includes(job.state) && <><Button tooltip={t('tooltip.deleteRun')} variant="outline" disabled={busy} onClick={() => deleteDialog.current?.showModal()}>{t('app.deleteRun')}</Button></>}</div>}</div>
             {job?.cleanup && <p role="status" className="mb-4 rounded-xl bg-teal-50 p-3 text-sm text-teal-900">{t('app.cleanup.done', { size: (job.cleanup.removedBytes / 1024 / 1024).toLocaleString(locale, { maximumFractionDigits: 1 }) })} {t('app.cleanup.replay')}</p>}
           </section>
         </DatasetResults>}
@@ -335,7 +335,7 @@ function App() {
           <p className="text-sm">{t('app.bulk.resultsHelp')}</p>
           {job.state === 'succeeded' && <BulkPackages key={`packages-${job.id}`} jobId={job.id} language={language} onUpload={openUpload}/>}
           {job.bulk_resumable && <div><Button disabled={busy} onClick={() => void resumeBulk()}>{t('app.bulk.resume')}</Button><p className="mt-2 text-xs">{t('app.bulk.resumeHelp')}</p></div>}
-          {!['queued', 'running'].includes(job.state) && <div className="flex flex-wrap gap-2">{job.bulk_continuable && <Button variant="outline" disabled={busy} onClick={() => void loadContinuation(job.id)}>{t('app.series.continue')}</Button>}<Button variant="outline" onClick={() => void loadRun()}>{t('app.loadRun')}</Button><Button variant="outline" onClick={() => deleteDialog.current?.showModal()}>{t('app.deleteRun')}</Button></div>}
+          {!['queued', 'running'].includes(job.state) && <div className="flex flex-wrap gap-2">{job.bulk_continuable && <Button variant="outline" disabled={busy} onClick={() => void loadContinuation(job.id)}>{t('app.series.continue')}</Button>}<Button tooltip={t('tooltip.loadRun')} variant="outline" onClick={() => void loadRun()}>{t('app.loadRun')}</Button><Button tooltip={t('tooltip.deleteRun')} variant="outline" onClick={() => deleteDialog.current?.showModal()}>{t('app.deleteRun')}</Button></div>}
         </section>}
         <SelectionProgress log={logText} language={language} running={job?.state === 'running'}/>
         {!job?.cleanup && <details open={!!job && ['queued', 'running'].includes(job.state)}><summary className="cursor-pointer text-sm font-medium">{t('app.logs')}</summary><pre aria-label={t('app.logs')} className="mt-3 h-96 overflow-auto rounded-xl bg-slate-950 p-4 font-mono text-xs leading-5 whitespace-pre-wrap text-slate-200">{logText}</pre></details>}
