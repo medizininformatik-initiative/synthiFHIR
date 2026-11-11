@@ -261,24 +261,34 @@ Loading starts no job. Edit the settings as needed and use the normal start butt
 A new run uses the installed converter and generator; existing results remain
 attached to their original runs.
 
-## Inspect datasets and reports
+## Download run results
 
-Select a run to see **Datasets and reports**. Each embedded configuration variant
-has its own dataset archive; independent saved configurations remain separate
-runs. The overview shows unique Patient and resource counts, counts by resource
-type, repeated resource IDs and resources without IDs. Inspection streams one
-representation per output folder in this order: JSON, NDJSON, gzip JSON, bzip2
-JSON, ZIP JSON, XML. Additional formats do not increase the counts. Counts do
-not establish FHIR conformance or equality of resources sharing an ID.
+In **Runs**, the left-hand list shows each run's name, source, execution type,
+status and patient count. Follow-up runs appear beneath their starting run;
+searching keeps related runs together. Select a run to open its results.
 
-Expand the report section for import, validation and projection summaries, then
-use each report link for the complete file. Summaries cover reports up to 2 MiB;
-all reports remain accessible through the file list. Search the file list for
-workbooks, sources, options, reports or logs. File and dataset downloads stream
-from disk. Download names use saved output-patient counts without rescanning FHIR
-files. Names omit the patient count when it is unavailable or when a complete run
-contains multiple datasets whose patient IDs may overlap. The complete run ZIP
-remains available alongside the separate FHIR dataset archives. Failed runs retain available artifacts for diagnosis.
+**FHIR data** is the primary result. **Download all FHIR data** streams a ZIP
+containing the available FHIR files of the selected run. Files are collected in
+one folder per dataset or bulk package, with numeric filename prefixes to avoid
+collisions. Payload bytes and existing compression are preserved. Multiple KDS
+variants stay in separate numbered and named folders. A continuation's download contains
+that run's results; its starting run remains separately accessible.
+
+**Individual files and datasets** provides separate downloads and resource
+statistics. **Load into FHIR servers** opens the server selection before starting
+an upload. Failed runs show an incomplete-results notice.
+
+**Input data** provides saved Excel workbooks with settings, generated CSV tables
+and uploaded source files where available. Bulk runs do not retain intermediate
+conversion tables. **Reports and other files** provides the searchable file list
+and complete run archive. Validation and transfer summaries are expandable below
+the results. **Find the local results folder** in the FHIR section provides the local output
+path, copy-path action and instructions for opening it in a file manager.
+
+Inspection streams one representation per output folder in this order: JSON,
+NDJSON, gzip JSON, bzip2 JSON, ZIP JSON, XML. Additional formats do not increase
+the counts. Counts do not establish FHIR conformance or equality of resources
+sharing an ID. Resource statistics can be expanded for each dataset or package.
 
 The worker records a persistent dataset manifest and archive checksum. It indexes
 finished runs when idle and publishes each manifest atomically. The inspection

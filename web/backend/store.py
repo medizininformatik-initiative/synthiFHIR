@@ -308,6 +308,8 @@ def job_result(row):
     snapshot_path = ROOT / 'jobs' / job['id'] / 'snapshot.json'
     if snapshot_path.is_file():
         snapshot = json.loads(snapshot_path.read_text())
+        if isinstance(snapshot.get('addition'), dict) and snapshot['addition'].get('sourceRun'):
+            job['addition'] = {'sourceRun': snapshot['addition']['sourceRun']}
         import inputs, run_replay, result_exports
         job['workbook_count'] = len(run_replay.workbooks(snapshot_path.parent, snapshot))
         try:
