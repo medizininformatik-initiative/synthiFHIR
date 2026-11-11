@@ -57,8 +57,7 @@ select:not([multiple]):not([size]) {
   }
 }
 
-/* Shared view tabs: a continuous baseline, with the selected sheet open below.
-   Keep one scrollable row so wrapped tabs never appear to belong to another panel. */
+/* Shared view tabs retain the existing palette and a continuous baseline. */
 .workbench-tabs {
   display: flex;
   gap: 0.25rem;
@@ -67,6 +66,8 @@ select:not([multiple]):not([size]) {
   background: linear-gradient(#cbd5e1, #cbd5e1) bottom / 100% 1px no-repeat;
 }
 .workbench-tabs-inset {
+  flex-wrap: wrap;
+  overflow-x: visible;
   padding: 0.75rem 0.75rem 0;
   background-color: #f1f5f9;
   border-top: 1px solid #e2e8f0;
@@ -82,6 +83,12 @@ select:not([multiple]):not([size]) {
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
+}
+.workbench-tabs-inset .workbench-tab {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 .workbench-tab:hover {
   color: #115e59;
