@@ -266,6 +266,8 @@ def editor_input(job_id):
     folder = ROOT / 'jobs' / job_id
     snapshot = json.loads((folder / 'snapshot.json').read_text())
     kind = snapshot.get('inputKind', 'workbook')
+    if kind == 'resource-addition':
+        raise ValueError('Use the source run to create further additions')
     if kind == 'workbook-set':
         import run_replay
         return run_replay.editor(job_id)
@@ -310,7 +312,9 @@ def job_result(row):
         snapshot = json.loads(snapshot_path.read_text())
         import inputs, run_replay, result_exports
         job['workbook_count'] = len(run_replay.workbooks(snapshot_path.parent, snapshot))
-        job['editor_available'] = (snapshot_path.parent / inputs.input_filename(snapshot.get('inputKind', 'workbook'))).is_file()
+        job['editor_available'] = snapshot.get('inputKind') != 'resource-addition' and (snapshot_path.parent / inputs.input_filename(snapshot.get('inputKind', 'workbook'))).is_file()
+        if snapshot.get('addition'):
+            job['addition'] = snapshot['addition']
         config = snapshot['profile']
         job['summary'] = run_summary.summary(snapshot_path.parent, snapshot, job['state'])
         job['outcomes'] = run_outcomes.read(snapshot_path.parent, snapshot, job['state'])

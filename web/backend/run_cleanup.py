@@ -66,7 +66,7 @@ def strings(path):
 def retained(root, manifest):
     keep = {root / name for name in ('snapshot.json', 'default.config', 'datasets.json',
             'bulk-remainder.zip', 'series-remainder.zip', 'bulk-completion.json', 'bulk-identifier-history.sqlite', 'series-identifiers.sqlite',
-            'input.xlsx', 'input.zip', 'generation.json', 'generation-result.json', 'timing.json', 'failure.json', 'outcomes.json')
+            'input.xlsx', 'input.zip', 'addition.ndjson', 'generation.json', 'generation-result.json', 'timing.json', 'failure.json', 'outcomes.json')
             if (root / name).is_file()}
     snapshot = json.loads((root / 'snapshot.json').read_text())
     if snapshot.get('inputKind') == 'workbook-set':
@@ -77,7 +77,7 @@ def retained(root, manifest):
     for path in (root / 'output').rglob('*'):
         parts = path.relative_to(root / 'output').parts
         if path.is_file() and (len(parts) >= 3 and parts[1] in {'fhir', 'excel'}
-                or path.suffix == '.config' or path.name in {'environment.json', 'csv.zip'}):
+                or path.suffix == '.config' or path.name in {'environment.json', 'csv.zip', 'additions.json'}):
             keep.add(path)
     for item in manifest['datasets']:
         for file in item['files']:
@@ -107,7 +107,9 @@ def cleanup(job_id):
         all_files = {path for path in root.rglob('*') if path.is_file() or path.is_symlink()}
         if any(path.is_symlink() for path in root.rglob('*')):
             raise store.SubmissionConflict('Run contains linked files; cleanup cannot safely determine dependencies')
-        for name in ('snapshot.json', 'default.config'):
+        snapshot = json.loads((root / 'snapshot.json').read_text())
+        required = ('snapshot.json', 'addition.ndjson') if snapshot.get('inputKind') == 'resource-addition' else ('snapshot.json', 'default.config')
+        for name in required:
             if not (root / name).is_file():
                 raise store.SubmissionConflict('Saved configuration is unavailable')
         keep = retained(root, manifest)

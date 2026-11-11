@@ -261,6 +261,29 @@ Loading starts no job. Edit the settings as needed and use the normal start butt
 A new run uses the installed converter and generator; existing results remain
 attached to their original runs.
 
+## Add resources to an existing run
+
+In **Runs**, select a successful run and choose **Add resources**. The panel lists
+supported resource types present in its FHIR results. Choose patient or encounter
+references and edit the settings for the additional resources. DocumentReference
+supports the same type coding presets, free coding rows and NLP settings as the
+configuration editor.
+
+Each matching source resource produces one copy with a new FHIR ID. Patient mode
+keeps its patient reference and removes its encounter reference. Encounter mode
+keeps both references and requires an encounter belonging to the same patient.
+The preview shows resource, patient and encounter counts and reports skipped
+resources without the required references. Other properties, including document
+content and identifiers, are copied. References between copied resources of the
+selected type point to their new IDs; other references keep their existing targets.
+
+Starting the addition creates a separate run with JSON and NDJSON results containing
+only the new resources. Load these results into the same FHIR server as the source
+run. Patients and encounters remain in the source run. Repeat the action on the
+source run to produce another variant with separate IDs. The addition report records
+the settings, source run and old-to-new ID mapping. A resource type requires existing
+source resources to copy; this workflow does not generate new clinical content.
+
 ## Inspect datasets and reports
 
 Select a run to see **Datasets and reports**. Each embedded configuration variant
