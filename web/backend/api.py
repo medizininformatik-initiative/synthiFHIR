@@ -434,3 +434,27 @@ def cancel_fhir_upload(upload_id: UUID):
 @app.get('/api/fhir-uploads/{upload_id}/logs', response_class=PlainTextResponse)
 def fhir_upload_logs(upload_id: UUID):
     return configuration_call(fhir_uploads.logs, str(upload_id))
+
+
+from resource_additions import Settings as AdditionSettings
+
+
+class AdditionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    requestId: UUID
+    fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
+    settings: AdditionSettings
+
+
+@app.get('/api/jobs/{job_id}/additions')
+def addition_catalogue(job_id: UUID):
+    import resource_additions
+    return configuration_call(resource_additions.catalogue, str(job_id))
+
+
+@app.post('/api/jobs/{job_id}/additions', status_code=201)
+def add_resources(job_id: UUID, request: AdditionRequest):
+    import resource_additions
+    result = configuration_call(resource_additions.create, str(job_id), request.settings,
+                                request.fingerprint, str(request.requestId))
+    return store.get(result)

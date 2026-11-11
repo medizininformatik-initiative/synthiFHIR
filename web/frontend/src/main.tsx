@@ -1,3 +1,4 @@
+import { ResourceAdditions } from './ResourceAdditions'
 import { numberRuns, continuationReference } from './run-numbering'
 import { OutputDirectory } from './OutputDirectory'
 import { BulkProgress, type BulkStatus, type BulkSubrun } from './BulkProgress'
@@ -25,7 +26,7 @@ import { exportPropertiesConfiguration, importRunProperties } from './configurat
 
 type Continuation = { sourceOffset?: number; sourceRun: string; requestedRun: string; seriesRoot: string; completedBefore: number; generation: Generation; datasetName: string; configurationProperties?: string; nextCounters: Record<string, string> }
 
-type Job = { continuation?: { sourceRun: string } | null; bulk_continuable?: boolean; output_directory?: string; bulk_output_directory?: string; bulk_progress?: BulkStatus; bulk_subruns?: BulkSubrun[]; bulk_resumable?: boolean; table_format?: 'csv' | 'excel'; outcomes?: Outcomes; workbook_count?: number; cleanup?: { completed: number; removedBytes: number; removedFiles: number }; editor_available?: boolean; summary?: DatasetContext['summary']; input_kind?: string; duration_seconds?: number | null; failure?: { kind: 'memory' | 'killed'; evidence: string }; dataset_name?: string; id: string; state: string; created: number; cancel: number; exit_code: number | null; download_available: boolean; source?: string; source_name?: string; configuration?: { id: string; name: string; revision: number | null }; batch_id?: string | null; repeated_from?: string | null; generation?: Generation; generation_result?: { generatedPatients: number; importedPatients: number; failedPatients: number } }
+type Job = { addition?: { sourceRun: string; sourceName: string }; continuation?: { sourceRun: string } | null; bulk_continuable?: boolean; output_directory?: string; bulk_output_directory?: string; bulk_progress?: BulkStatus; bulk_subruns?: BulkSubrun[]; bulk_resumable?: boolean; table_format?: 'csv' | 'excel'; outcomes?: Outcomes; workbook_count?: number; cleanup?: { completed: number; removedBytes: number; removedFiles: number }; editor_available?: boolean; summary?: DatasetContext['summary']; input_kind?: string; duration_seconds?: number | null; failure?: { kind: 'memory' | 'killed'; evidence: string }; dataset_name?: string; id: string; state: string; created: number; cancel: number; exit_code: number | null; download_available: boolean; source?: string; source_name?: string; configuration?: { id: string; name: string; revision: number | null }; batch_id?: string | null; repeated_from?: string | null; generation?: Generation; generation_result?: { generatedPatients: number; importedPatients: number; failedPatients: number } }
 async function fetchResponse(path: string, init?: RequestInit): Promise<Response> {
   let response: Response
   try { response = await fetch('/api' + path, init) }
@@ -337,6 +338,11 @@ function App() {
           {job.bulk_resumable && <div><Button disabled={busy} onClick={() => void resumeBulk()}>{t('app.bulk.resume')}</Button><p className="mt-2 text-xs">{t('app.bulk.resumeHelp')}</p></div>}
           {!['queued', 'running'].includes(job.state) && <div className="flex flex-wrap gap-2">{job.bulk_continuable && <Button variant="outline" disabled={busy} onClick={() => void loadContinuation(job.id)}>{t('app.series.continue')}</Button>}<Button tooltip={t('tooltip.loadRun')} variant="outline" onClick={() => void loadRun()}>{t('app.loadRun')}</Button><Button tooltip={t('tooltip.deleteRun')} variant="outline" onClick={() => deleteDialog.current?.showModal()}>{t('app.deleteRun')}</Button></div>}
         </section>}
+        {job?.addition && <p className="my-3 text-sm">{t('app.additions.source')}: <button className="text-teal-800 underline" onClick={() => select(job.addition!.sourceRun)}>{job.addition.sourceName}</button></p>}
+        {job?.state === 'succeeded' && !job.addition && <ResourceAdditions key={`additions-${job.id}`} jobId={job.id} language={language} onCreate={async (settings, fingerprint) => {
+          const added = await submitRuns<Job>(`/jobs/${job.id}/additions`, { settings, fingerprint })
+          setJobs(old => [added, ...old.filter(item => item.id !== added.id)]); select(added.id)
+        }}/>}
         <SelectionProgress log={logText} language={language} running={job?.state === 'running'}/>
         {!job?.cleanup && <details open={!!job && ['queued', 'running'].includes(job.state)}><summary className="cursor-pointer text-sm font-medium">{t('app.logs')}</summary><pre aria-label={t('app.logs')} className="mt-3 h-96 overflow-auto rounded-xl bg-slate-950 p-4 font-mono text-xs leading-5 whitespace-pre-wrap text-slate-200">{logText}</pre></details>}
       </section>
