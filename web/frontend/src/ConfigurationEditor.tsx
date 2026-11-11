@@ -444,12 +444,13 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
       <div
         role="tablist"
         aria-label={t('app.config.title')}
-        className="flex flex-wrap gap-2 border-y border-slate-200 bg-slate-100 p-3"
+        className="workbench-tabs workbench-tabs-inset"
       >
         {contract.sections.map((section, index) => (
           <button
             key={section.id}
             id={`tab-${section.id}`}
+            type="button"
             role="tab"
             aria-selected={tab === section.id}
             aria-controls={`panel-${section.id}`}
@@ -472,7 +473,7 @@ export function ConfigurationEditor({ language, onChange, initialConfiguration, 
                 .getElementById(`tab-${contract.sections[next].id}`)
                 ?.focus()
             }}
-            className={`rounded-lg border px-3 py-1 min-h-[var(--control-height)] text-sm font-medium shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${tab === section.id ? 'border-teal-800 bg-teal-800 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-teal-700 hover:bg-teal-50 hover:text-teal-900'}`}
+            className="workbench-tab"
           >
             {t(section.labelKey)}
           </button>
