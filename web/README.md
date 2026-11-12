@@ -274,8 +274,11 @@ collisions. Payload bytes and existing compression are preserved. Multiple KDS
 variants stay in separate numbered and named folders. A continuation's download contains
 that run's results; its starting run remains separately accessible.
 
-**Individual files and datasets** provides separate downloads and resource
-statistics. **Load into FHIR servers** opens the server selection before starting
+For a single result group, download and upload actions appear once at the top.
+**Individual FHIR files** lists its files directly, followed by resource statistics.
+Multiple KDS variants or bulk files retain their own actions below the run-wide
+actions. Addition runs show the generated resource types and counts instead of
+patient and case counts. **Load into FHIR servers** opens the server selection before starting
 an upload. Failed runs show an incomplete-results notice.
 
 **Input data** provides saved Excel workbooks with settings, generated CSV tables

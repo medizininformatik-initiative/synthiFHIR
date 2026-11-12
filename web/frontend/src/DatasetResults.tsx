@@ -8,7 +8,7 @@ import { Button } from './components/ui/button'
 import { translate, type Language } from './i18n'
 
 type Artifact = { id: string; path: string; size: number; report?: unknown }
-type Dataset = { statistics?: Statistics; id: string; name: string; kind?: string; filename?: string; path?: string; error?: string; size?: number; files?: Artifact[]; inspection?: { patients: number; uniqueResources?: number; resourceInstances?: number; inspectedFormats?: string[] } }
+type Dataset = { statistics?: Statistics; id: string; name: string; kind?: string; filename?: string; path?: string; error?: string; size?: number; files?: Artifact[]; inspection?: { patients: number; uniqueResources?: number; resourceInstances?: number; resourceCounts?: Record<string, number>; inspectedFormats?: string[] } }
 type Manifest = { pending?: boolean; error?: string; datasets: Dataset[]; artifacts: Artifact[] }
 const fhirFile = (path: string) => /\.(json|ndjson|jsonl|xml)(\.(gz|bz2|zip))?$/i.test(path)
 export function DatasetResults({ jobId, state, language, context, onUpload, inputKind, downloadAvailable, outputDirectory }: { outputDirectory?: string; downloadAvailable: boolean; inputKind?: string; jobId: string; state: string; language: Language; context: DatasetContext; onUpload: (ids: string[]) => void }) {
@@ -43,6 +43,9 @@ export function DatasetResults({ jobId, state, language, context, onUpload, inpu
   const datasets = manifest?.datasets ?? []
   const artifacts = manifest?.artifacts ?? []
   const ready = datasets.filter(item => item.size !== undefined && !item.error)
+  const single = datasets.length === 1
+  const addition = inputKind === 'resource-addition'
+  const resourceTypes = single ? datasets[0].statistics?.resources ?? datasets[0].inspection?.resourceCounts : undefined
   const bulk = datasets.some(item => item.kind === 'bulk')
   const files = datasets.flatMap(item => (item.files ?? []).filter(file => fhirFile(file.path)))
   const formats = [...new Set((bulk ? datasets.map(item => item.filename ?? item.path ?? '') : files.map(file => file.path)).map(path => /\.ndjson(\.(gz|bz2|zip))?$/i.test(path) ? 'NDJSON' : /\.xml(\.(gz|bz2|zip))?$/i.test(path) ? 'XML' : /\.jsonl$/i.test(path) ? 'NDJSON' : /\.json(\.(gz|bz2|zip))?$/i.test(path) || path.endsWith('.zip') ? 'JSON' : '').filter(Boolean))]
@@ -58,17 +61,25 @@ export function DatasetResults({ jobId, state, language, context, onUpload, inpu
   const sourceDownload = ['csv', 'synthea', 'synthea-zip'].includes(inputKind ?? '')
   const { patients, cases, resources } = resultCounts(datasets)
   const visibleArtifacts = artifacts.filter(file => file.path.toLowerCase().includes(search.toLowerCase()))
+  const fileList = (item: Dataset) => {
+    const matches = (item.files ?? []).filter(file => fhirFile(file.path) && file.path.toLowerCase().includes(fhirSearch.toLowerCase()))
+    return <>
+      <ul className="mt-2 max-h-64 space-y-2 overflow-auto">{matches.slice(0, 200).map(file => <li key={file.id}><a className="break-all text-teal-800 underline" title={file.path} href={`/api/jobs/${jobId}/artifacts/${file.id}`}>{file.path.slice((item.path?.length ?? -1) + 1)}</a> <span className="text-xs text-slate-500">{size(file.size)}</span></li>)}</ul>
+      {matches.length > 200 && <p className="mt-2 text-xs text-slate-500">{de ? 'Die ersten 200 Treffer werden angezeigt. Grenze die Suche ein oder lade alle FHIR-Daten herunter.' : 'Showing the first 200 matches. Refine your search or download all FHIR data.'}</p>}
+      {!matches.length && <p className="mt-2 text-slate-500">{de ? 'Keine passenden FHIR-Dateien.' : 'No matching FHIR files.'}</p>}
+    </>
+  }
   return <div className="space-y-5">
     <section className="rounded-xl border border-teal-200 bg-teal-50/60 p-5" aria-label={de ? 'FHIR-Daten' : 'FHIR data'}>
       <h3 className="text-xl font-semibold text-teal-950">{de ? 'FHIR-Daten' : 'FHIR data'}</h3>
       <p className="mt-1 text-sm text-slate-600">{de ? 'Die erzeugten Daten herunterladen oder auf einen FHIR-Server laden.' : 'Download the generated data or upload it to a FHIR server.'}</p>
       {!!datasets.length && <>
         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium">
-          {patients != null && <span><strong className="text-lg">{number(patients)}</strong> {de ? (patients === 1 ? 'Patient' : 'Patienten') : (patients === 1 ? 'patient' : 'patients')}</span>}
-          {cases != null && <span><strong className="text-lg">{number(cases)}</strong> {de ? (cases === 1 ? 'Fall' : 'Fälle') : (cases === 1 ? 'case' : 'cases')}</span>}
-          {resources != null && <span><strong className="text-lg">{number(resources)}</strong> {de ? 'Ressourcen' : 'resources'}</span>}
+          {!addition && patients != null && <span><strong className="text-lg">{number(patients)}</strong> {de ? (patients === 1 ? 'Patient' : 'Patienten') : (patients === 1 ? 'patient' : 'patients')}</span>}
+          {!addition && cases != null && <span><strong className="text-lg">{number(cases)}</strong> {de ? (cases === 1 ? 'Fall' : 'Fälle') : (cases === 1 ? 'case' : 'cases')}</span>}
+          {addition && resourceTypes ? Object.entries(resourceTypes).filter(([, count]) => count > 0).map(([type, count]) => <span key={type}><strong className="text-lg">{number(count)}</strong> {type}{de ? '-Ressourcen' : ' resources'}</span>) : resources != null && <span><strong className="text-lg">{number(resources)}</strong> {de ? 'Ressourcen' : 'resources'}</span>}
         </div>
-        {(cases != null || resources != null) && <p className="mt-2 text-xs text-slate-600">{de ? 'Fälle: Hauptkontakte ohne Unterkontakte. Ressourcen: alle Vorkommen, unabhängig vom Ausgabeformat.' : 'Cases: main encounters, excluding sub-encounters. Resources: all occurrences, counted independently of output format.'}</p>}
+        {(cases != null || resources != null) && <p className="mt-2 text-xs text-slate-600">{addition ? (de ? 'Die in diesem Ergänzungslauf erzeugten Ressourcen.' : 'Resources generated by this addition run.') : (de ? 'Fälle: Hauptkontakte ohne Unterkontakte. Ressourcen: alle Vorkommen, unabhängig vom Ausgabeformat.' : 'Cases: main encounters, excluding sub-encounters. Resources: all occurrences, counted independently of output format.')}</p>}
         <p className="mt-2 text-sm text-slate-600">{number(bulk ? datasets.length : files.length)} {formats.join(' / ') || 'FHIR'}{archivePackages ? (de ? '-Pakete' : ' packages') : (de ? ((bulk ? datasets.length : files.length) === 1 ? '-Datei' : '-Dateien') : ((bulk ? datasets.length : files.length) === 1 ? ' file' : ' files'))} · {compression}{ready.length > 0 && ` · ${size(bulk ? ready.reduce((total, item) => total + item.size!, 0) : files.reduce((total, file) => total + file.size, 0))}`}</p>
       </>}
       {failed && <p role="alert" className="mt-3 text-sm text-red-700">{t('app.datasets.failed')}</p>}
@@ -83,16 +94,23 @@ export function DatasetResults({ jobId, state, language, context, onUpload, inpu
           {state === 'succeeded' && <div><Button variant="outline" onClick={() => onUpload(ready.map(item => item.id))}><Upload size={16}/>{t('app.upload.open')}</Button><p className="mt-2 text-xs text-slate-600">{de ? 'Zuerst den Zielserver auswählen.' : 'Choose the target server first.'}</p></div>}
         </div>
       </>}
-      {!!datasets.length && <details className="mt-4 border-t border-teal-200 pt-3 text-sm">
-        <summary className="cursor-pointer font-medium">{de ? (bulk ? 'Einzelne Dateien und Inhalt' : 'Einzelne Dateien und Datensätze') : 'Individual files and datasets'}</summary>
-        <p className="mt-2 text-xs text-slate-600">{de ? 'Downloads und Upload beziehen sich jeweils auf den angegebenen Datensatz. Mehrere KDS-Varianten bleiben getrennt.' : 'Downloads and uploads apply to the specified dataset. Multiple KDS variants remain separate.'}</p>
+      {single && <section className="mt-4 border-t border-teal-200 pt-3 text-sm">
+        <h4 className="font-medium">{de ? 'Einzelne FHIR-Dateien' : 'Individual FHIR files'}</h4>
+        {!bulk && files.length > 10 && <input className="mt-3 w-full rounded-lg border border-slate-300 bg-white p-2" aria-label={de ? 'FHIR-Dateien suchen' : 'Search FHIR files'} placeholder={de ? 'FHIR-Dateien nach Namen suchen' : 'Search FHIR files by name'} value={fhirSearch} onChange={event => setFhirSearch(event.target.value)}/>}
+        {datasets[0].error && <p role="alert" className="mt-2 text-red-700">{datasets[0].error}</p>}
+        {bulk ? <p className="mt-2"><a className="break-all text-teal-800 underline" href={`/api/datasets/${datasets[0].id}/download`}>{datasets[0].filename ?? `${datasets[0].name}.zip`}</a></p> : fileList(datasets[0])}
+        <ResourceStatistics datasetId={datasets[0].id} statistics={datasets[0].statistics} language={language}/>
+      </section>}
+      {datasets.length > 1 && <details className="mt-4 border-t border-teal-200 pt-3 text-sm">
+        <summary className="cursor-pointer font-medium">{de ? (bulk ? 'Einzelne Dateien und Inhalt' : 'Einzelne KDS-Varianten') : (bulk ? 'Individual files' : 'Individual KDS variants')}</summary>
+        <p className="mt-2 text-xs text-slate-600">{de ? (bulk ? 'Jede Datei enthält einen Teil der FHIR-Ergebnisse dieses Laufs.' : 'Jede KDS-Variante enthält ihre eigenen FHIR-Ergebnisse. Die Aktionen darunter gelten nur für diese Variante.') : (bulk ? 'Each file contains part of this run’s FHIR results.' : 'Each KDS variant contains its own FHIR results. Actions below apply only to that variant.')}</p>
         {!bulk && <input className="mt-3 w-full rounded-lg border border-slate-300 bg-white p-2" aria-label={de ? 'FHIR-Dateien suchen' : 'Search FHIR files'} placeholder={de ? 'FHIR-Dateien nach Namen suchen' : 'Search FHIR files by name'} value={fhirSearch} onChange={event => setFhirSearch(event.target.value)}/>}
         <div className="mt-3 space-y-3">{datasets.slice(0, limit).map((item, index) => <div key={item.id} className="rounded-lg border border-slate-200 bg-white p-3">
-          <h4 className="break-words font-medium">{bulk ? `${de ? (archivePackages ? 'Paket' : 'Datei') : (archivePackages ? 'Package' : 'File')} ${index + 1}` : `${de ? 'Datensatz' : 'Dataset'} ${index + 1} · ${item.name}`}</h4>
-          {item.inspection && <p className="mt-1 text-xs text-slate-600">{number(item.inspection.patients)} {de ? (item.inspection.patients === 1 ? 'Patient' : 'Patienten') : (item.inspection.patients === 1 ? 'patient' : 'patients')}{item.size != null && ` · ${size(item.size)}`}</p>}
+          <h4 className="break-words font-medium">{bulk ? `${de ? (archivePackages ? 'Paket' : 'Datei') : (archivePackages ? 'Package' : 'File')} ${index + 1}` : `${de ? 'KDS-Variante' : 'KDS variant'} ${index + 1} · ${item.name}`}</h4>
+          {!addition && item.inspection && <p className="mt-1 text-xs text-slate-600">{number(item.inspection.patients)} {de ? (item.inspection.patients === 1 ? 'Patient' : 'Patienten') : (item.inspection.patients === 1 ? 'patient' : 'patients')}{item.size != null && ` · ${size(item.size)}`}</p>}
           {item.error && <p role="alert" className="mt-2 text-red-700">{item.error}</p>}
-          {item.size != null && <div className="mt-2 flex flex-wrap gap-3"><a className="text-teal-800 underline" href={`/api/datasets/${item.id}/download`}>{bulk ? item.filename ?? `${item.name}.zip` : de ? 'Datensatz herunterladen (ZIP)' : 'Download dataset (ZIP)'}</a>{state === 'succeeded' && !item.error && <button className="text-teal-800 underline" onClick={() => onUpload([item.id])}>{t('app.upload.open')}</button>}</div>}
-          {!bulk && <details className="mt-2"><summary className="cursor-pointer">{de ? 'FHIR-Dateien anzeigen' : 'Show FHIR files'}</summary><ul className="mt-2 max-h-64 space-y-2 overflow-auto">{(item.files ?? []).filter(file => fhirFile(file.path) && file.path.toLowerCase().includes(fhirSearch.toLowerCase())).slice(0, 200).map(file => <li key={file.id}><a className="break-all text-teal-800 underline" title={file.path} href={`/api/jobs/${jobId}/artifacts/${file.id}`}>{file.path.slice((item.path?.length ?? -1) + 1)}</a> <span className="text-xs text-slate-500">{size(file.size)}</span></li>)}</ul>{(item.files ?? []).filter(file => fhirFile(file.path) && file.path.toLowerCase().includes(fhirSearch.toLowerCase())).length > 200 && <p className="mt-2 text-xs text-slate-500">{de ? 'Die ersten 200 Treffer werden angezeigt. Grenze die Suche ein oder lade alle FHIR-Daten herunter.' : 'Showing the first 200 matches. Refine your search or download all FHIR data.'}</p>}</details>}
+          {item.size != null && <div className="mt-2 flex flex-wrap gap-3"><a className="text-teal-800 underline" href={`/api/datasets/${item.id}/download`}>{bulk ? item.filename ?? `${item.name}.zip` : de ? 'FHIR-Dateien dieser Variante (ZIP)' : 'FHIR files for this variant (ZIP)'}</a>{state === 'succeeded' && !item.error && <button className="text-teal-800 underline" onClick={() => onUpload([item.id])}>{t('app.upload.open')}</button>}</div>}
+          {!bulk && <details className="mt-2"><summary className="cursor-pointer">{de ? 'FHIR-Dateien anzeigen' : 'Show FHIR files'}</summary>{fileList(item)}</details>}
           <ResourceStatistics datasetId={item.id} statistics={item.statistics} language={language}/>
         </div>)}</div>
         {limit < datasets.length && <Button className="mt-3" variant="outline" onClick={() => setLimit(value => value + 20)}>{de ? 'Weitere anzeigen' : 'Show more'}</Button>}
