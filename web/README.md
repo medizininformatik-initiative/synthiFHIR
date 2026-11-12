@@ -288,7 +288,11 @@ path, copy-path action and instructions for opening it in a file manager.
 Inspection streams one representation per output folder in this order: JSON,
 NDJSON, gzip JSON, bzip2 JSON, ZIP JSON, XML. Additional formats do not increase
 the counts. Counts do not establish FHIR conformance or equality of resources
-sharing an ID. Resource statistics can be expanded for each dataset or package.
+sharing an ID. The result summary counts patients, main encounters as cases (excluding
+sub-encounters), and resource occurrences. Repeated IDs count as separate
+occurrences; alternative output formats do not increase the count. Bulk packages
+are added together; KDS variants are kept separate. Unavailable counts are omitted.
+Resource statistics open with one disclosure for each dataset or package.
 
 The worker records a persistent dataset manifest and archive checksum. It indexes
 finished runs when idle and publishes each manifest atomically. The inspection
