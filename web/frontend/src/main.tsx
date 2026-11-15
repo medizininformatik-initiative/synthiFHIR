@@ -342,6 +342,10 @@ function App() {
             <h3 className="mt-1 break-words text-xl font-semibold">{runTitle(job)}</h3>
             <p className="mt-2 text-sm text-slate-500">{t(stateKey(job.state))} · {new Date(job.created * 1000).toLocaleString(locale)}{duration(job) ? ` · ${duration(job)}` : ''}</p>
             {(job.continuation || job.addition) && <button disabled={!jobs.some(item => item.id === (job.addition ?? job.continuation)!.sourceRun)} className="mt-2 text-sm text-teal-800 underline disabled:text-slate-400" onClick={() => select((job.addition ?? job.continuation)!.sourceRun)}>{de ? 'Ausgangslauf öffnen' : 'Open starting run'}</button>}
+            {job.bulk_continuable && <div className="mt-4">
+              <Button variant="outline" disabled={busy} onClick={() => void loadContinuation(job.id)} aria-describedby="continue-series-help">{t('app.series.continue')}</Button>
+              <p id="continue-series-help" className="mt-2 text-xs text-slate-600">{de ? 'Weitere Patienten mit denselben Einstellungen erzeugen.' : 'Generate more patients with the same settings.'}</p>
+            </div>}
           </div>
           {job.bulk_progress && ['queued', 'running'].includes(job.state) && <BulkProgress progress={job.bulk_progress} subruns={job.bulk_subruns} state={job.state} language={language}/>}
           <DatasetResults key={job.id + ':' + (job.cleanup?.completed ?? '')} outputDirectory={job.output_directory} downloadAvailable={job.download_available} inputKind={job.input_kind} onUpload={openUpload} context={runContext(job)} jobId={job.id} state={job.state} language={language}/>
@@ -351,10 +355,8 @@ function App() {
             <div className="flex flex-wrap gap-2">
               {!['queued', 'running'].includes(job.state) && <Button variant="outline" tooltip={t('tooltip.loadRun')} disabled={busy || job.editor_available === false} onClick={() => void loadRun()}>{t('app.loadRun')}</Button>}
               {['succeeded', 'failed'].includes(job.state) && !!job.workbook_count && <Button variant="outline" tooltip={t('tooltip.replay')} disabled={busy} onClick={() => void loadRun(true)}>{t('app.replay.action')}</Button>}
-              {job.bulk_continuable && <Button variant="outline" disabled={busy} onClick={() => void loadContinuation(job.id)}>{t('app.series.continue')}</Button>}
               {job.bulk_resumable && <Button variant="outline" disabled={busy} onClick={() => void resumeBulk()}>{t('app.bulk.resume')}</Button>}
             </div>
-            {job.bulk_continuable && <p className="text-xs text-slate-500">{de ? 'Serie fortsetzen erzeugt weitere Patienten und ordnet den neuen Lauf dieser Serie zu.' : 'Continue series generates more patients and adds the new run to this series.'}</p>}
             {job.bulk_resumable && <p className="text-xs text-slate-500">{t('app.bulk.resumeHelp')}</p>}
           </section>
           <details className="mb-4 text-sm"><summary className="cursor-pointer font-medium text-slate-600">{de ? 'Einstellungen und Verwaltung' : 'Settings and management'}</summary>
