@@ -311,10 +311,34 @@ The name is display metadata and does not change generated FHIR content or resou
 
 ## Load datasets into a FHIR server
 
-In **Load datasets into FHIR servers**, select an available Blaze or HAPI target
-and one or more datasets from successful runs. The displayed address identifies
-the target. Start **Load datasets** to queue the action; generation jobs and
-uploads share the worker and run one at a time.
+In **FHIR servers and data**, choose a local or saved external server. The same
+selection applies to uploads and **View resources on the server**.
+
+Use **Add server** to enter a name, the FHIR R4 base address and authentication:
+
+- **No authentication:** no credentials.
+- **Username and password (Basic Auth):** the server credentials.
+- **Bearer token:** paste the token without the `Bearer` prefix.
+- **OAuth2:** choose application access (Client Credentials) or browser sign-in
+  (Authorization Code with PKCE). Enter the client details and token endpoint;
+  browser sign-in also needs an authorization endpoint. A provider address can
+  discover the endpoints. After saving a browser connection,
+  copy its displayed redirect URI and register it with the provider, then sign in.
+
+Use **Check connection** to check access and supported FHIR features without
+writing data. Write permission is checked during upload. External connections
+with credentials require HTTPS; local loopback addresses also allow HTTP.
+Addresses must be reachable from the Workbench backend. Credentials stay in
+protected backend storage and are omitted from exports and upload logs. OAuth2
+tokens are renewed automatically when the provider supports it.
+
+Select one or more datasets from successful runs and check the displayed target
+name and address. Start **Load datasets** to queue the action; generation jobs
+and uploads share the worker and run one at a time.
+
+Use **View resources on the server** to read a resource type or an individual
+resource, for example `Patient` or `Patient/123`. **Narrow the search** accepts
+FHIR search parameters. The view reads data without changing it.
 
 The worker checks the entire selection before transferring any data. Different
 contents under the same resource type and ID within that selection stop the
@@ -326,8 +350,9 @@ Each action retains the selected dataset checksums, run snapshots, target,
 preparation result and upload log. Status distinguishes waiting, checking,
 uploading, success, conflicts, failure and interruption. **Cancel** stops further
 work. An interrupted or failed transfer can leave already uploaded transactions
-on the server; it is not rolled back. Select the datasets again to explicitly
-start another action. Reloading the browser does not cancel an upload.
+on the server; it is not rolled back. Use **Resume** when offered to continue
+from confirmed transactions, or select the datasets again to start another
+action. Reloading the browser does not cancel an upload.
 
 Dataset labels combine the chosen name (or workbook filename), source and saved
 run facts, for example `Demo · Synthea (Pat 10 · Cases 42 · Hist 0 · Age 18–85)`.

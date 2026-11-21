@@ -69,7 +69,7 @@ function stateKey(state: string): TextKey {
   }
 }
 function App() {
-  const [activeTab, setActiveTab] = useState<'generate' | 'runs' | 'services'>('generate')
+  const [activeTab, setActiveTab] = useState<'generate' | 'runs' | 'services'>(() => new URLSearchParams(window.location.search).has('fhirLogin') ? 'services' : 'generate')
   const [uploadSelection, setUploadSelection] = useState<{ ids: string[] } | null>(null)
   function openUpload(ids: string[]) { setUploadSelection({ ids }); setActiveTab('services') }
   const [language, setLanguage] = useState<Language>(initialLanguage)
