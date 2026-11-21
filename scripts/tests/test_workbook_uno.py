@@ -20,6 +20,28 @@ from workbook_records import SCHEMAS, record
     Path('/Applications/LibreOffice.app/Contents/MacOS/soffice').exists()
     or shutil.which('libreoffice') or shutil.which('soffice')), 'Requires Java and LibreOffice')
 class WorkbookUnoTest(unittest.TestCase):
+    def test_unedited_relative_validation_keeps_its_original_range_and_formula(self):
+        def relative_rules(path):
+            found = []
+            with ZipFile(path) as archive:
+                for name in archive.namelist():
+                    if name.startswith('xl/worksheets/') and name.endswith('.xml'):
+                        root = ET.fromstring(archive.read(name))
+                        for rule in root.findall('s:dataValidations/s:dataValidation', NS):
+                            formula = rule.findtext('s:formula1', '', NS)
+                            if '$C2' in formula:
+                                found.append((name, rule.attrib['sqref'], formula))
+            return sorted(found)
+
+        template = ROOT / 'FHIR_Testdatengenerator_Vorlage.xlsx'
+        expected = relative_rules(template)
+        self.assertTrue(expected, 'Template must contain a row-relative dropdown')
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'preserved.xlsx'
+            apply_workbook_edits(template, ['set\tPerson\tA2\tdGVzdA=='], output)
+            # Splitting sqref without translating the relative formula changes its anchor.
+            self.assertEqual(expected, relative_rules(output))
+
     def test_session_reuses_office_and_compilation_without_leaking_workbook_edits(self):
         with tempfile.TemporaryDirectory() as directory, \
              patch('synthea_to_excel.subprocess.run', wraps=subprocess.run) as run:

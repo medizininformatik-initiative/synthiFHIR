@@ -25,12 +25,14 @@ public class WorkflowOptions {
                     JsonObject definition = entry.getAsJsonObject();
                     String id = definition.get("id").getAsString();
                     if (!id.startsWith("resource.") && !id.startsWith("contact.") && !id.startsWith("reference.")
-                            && !id.startsWith("timeShift.") && !id.startsWith("medication.")) continue;
+                            && !id.startsWith("timeShift.") && !id.startsWith("medication.") && !id.startsWith("document.")) continue;
                     String fallback = definition.get("type").getAsString().equals("boolean") ? "false"
+                            : id.startsWith("document.") ? (id.endsWith(".mode") ? "input" : "[]")
                             : id.startsWith("medication.") ? "retain" : id.startsWith("timeShift.") ? "0"
                             : id.endsWith(".endPolicy") ? "preserve" : id.endsWith(".endApplication") ? "always" : "none";
                     String value = options.configuration().effective(id).map(node -> {
                         if (!node.isArray()) return node.asText();
+                        if (definition.get("type").getAsString().equals("array")) return node.toString();
                         List<String> members = new ArrayList<>();
                         node.forEach(member -> members.add(member.asText()));
                         return String.join(",", members);

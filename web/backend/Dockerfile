@@ -1,5 +1,6 @@
 FROM maven:3.8.5-openjdk-17 AS synthea-build
 COPY scripts/synthea-version.txt /synthea-version.txt
+COPY docker/synthea-dependencies.gradle /synthea-dependencies.gradle
 COPY scripts/synthea-workbench /workbench-selection
 WORKDIR /synthea
 RUN git init && git remote add origin https://github.com/astruebi/synthea.git \
@@ -8,7 +9,7 @@ RUN git init && git remote add origin https://github.com/astruebi/synthea.git \
     && test "$(git rev-parse HEAD)" = "$(cat /synthea-version.txt)" \
     && git apply /workbench-selection/generator.patch \
     && cp /workbench-selection/InpatientSelection.java src/main/java/org/mitre/synthea/engine/ \
-    && ./gradlew --no-daemon shadowJar \
+    && ./gradlew --no-daemon --init-script /synthea-dependencies.gradle shadowJar \
     && javac -cp build/libs/synthea-with-dependencies.jar -d /tmp/selection-tests /workbench-selection/InpatientSelectionTest.java \
     && java -cp /tmp/selection-tests:build/libs/synthea-with-dependencies.jar org.mitre.synthea.engine.InpatientSelectionTest
 
@@ -26,10 +27,10 @@ FROM debian:bookworm-slim AS blazectl
 ARG TARGETARCH
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
     && case "$TARGETARCH" in \
-      amd64) checksum=716fd5cba59ccceeb34b90be66465de05da28de92ccd55d793ab1e8c68d6ac54 ;; \
-      arm64) checksum=840b6364414e9f79a439a7512df4c55f747e6a87d446d2ebb77cfb7d238fcfc5 ;; \
+      amd64) checksum=a4f478f0961bfcff040fc0cf9900b0ff3a59582379d9bc66850273148996dc92 ;; \
+      arm64) checksum=f1e94a3f703b64dcf9620b97dcee7a2a9bc91fa0919df4f2aed66cddf0c6f5b3 ;; \
       *) exit 1 ;; esac \
-    && curl -fsSL "https://github.com/samply/blazectl/releases/download/v1.5.1/blazectl-1.5.1-linux-${TARGETARCH}.tar.gz" -o /tmp/blazectl.tar.gz \
+    && curl -fsSL "https://github.com/samply/blazectl/releases/download/v1.6.0/blazectl-1.6.0-linux-${TARGETARCH}.tar.gz" -o /tmp/blazectl.tar.gz \
     && echo "$checksum  /tmp/blazectl.tar.gz" | sha256sum -c - \
     && mkdir /blazectl && tar -xzf /tmp/blazectl.tar.gz -C /blazectl
 
@@ -50,15 +51,18 @@ COPY FHIR_Testdatengenerator_Interpolar_Demo.xlsx /converter/
 COPY --from=converter /defaults/converter-options.config /converter/defaults.config
 
 # The existing Synthea importer fills a copy of the template through LibreOffice.
-FROM debian:bookworm-slim AS worker
+FROM debian:trixie-slim AS worker
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    acl ca-certificates tzdata python3 python3-venv openjdk-17-jdk-headless libreoffice-calc \
+    acl ca-certificates tzdata python3 python3-venv openjdk-21-jdk-headless libreoffice-calc \
     libreoffice-java-common fonts-crosextra-carlito \
     && rm -rf /var/lib/apt/lists/* && python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH" LANG=C.UTF-8 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 COPY web/backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# pip is only needed while building; omit its vendored libraries from the runtime.
+RUN python -m pip install --no-cache-dir --upgrade pip==26.3 \
+    && python -m pip install --no-cache-dir -r requirements.txt \
+    && python -m pip uninstall -y pip
 COPY web/backend/*.py .
 COPY --from=runtime-files / /
 RUN PYTHONPATH=/synthea/scripts python -c "from check_dar import catalogue; catalogue()"

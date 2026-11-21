@@ -64,7 +64,14 @@ public class WorkbookUno {
                     continue;
                 }
                 XSpreadsheet sheet = q(XSpreadsheet.class, book.getSheets().getByName(a[1]));
-                if (a[0].equals("row")) {
+                if (a[0].equals("reuseValidation")) {
+                    String[] ranges = a[2].trim().split("\\s+");
+                    Object validation = q(XPropertySet.class,
+                            sheet.getCellRangeByName(ranges[0]).getCellByPosition(0, 0)).getPropertyValue("Validation");
+                    for (String range : ranges) {
+                        q(XPropertySet.class, sheet.getCellRangeByName(range)).setPropertyValue("Validation", validation);
+                    }
+                } else if (a[0].equals("row")) {
                     int row = Integer.parseInt(a[2].substring(1)) - 1;
                     List<Object[]> values = new ArrayList<>();
                     values.add(rowValues(a));

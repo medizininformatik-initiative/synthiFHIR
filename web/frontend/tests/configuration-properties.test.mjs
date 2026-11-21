@@ -91,6 +91,16 @@ test('diagnosis exports omit the retired inheritance switch and preserve inactiv
   assert.match(exported(config), /^# CONTACT_DIAGNOSES_ROLES = /m)
 })
 
+test('diagnosis role subsets and unrestricted selections survive both language exports', () => {
+  for (const roles of [['CC'], ['CM'], ['CC', 'CM'], ['AD'], [], ['billing', 'post-op', 'pre-op', 'DD', 'AD', 'CM', 'CC']]) {
+    const config = defaults()
+    config.values['contact.diagnoses.roles'] = roles
+    for (const language of ['de', 'en']) {
+      assert.deepEqual(importConfiguration(exported(config, language)), config)
+    }
+  }
+})
+
 test('encounter policies, scoped DAR and identifier selectors roundtrip in both languages', () => {
   const config = defaults()
   config.values['resource.Encounter.ambulatory.endPolicy'] = 'quarter-end'

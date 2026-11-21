@@ -39,7 +39,8 @@ same synthetic address as the patient.
 The [identity projection](synthea-german-demographics.md) runs before translation.
 Its `targetTextSha256` describes that intermediate text. `germanTexts` records the
 translation-table version, hash, translated occurrence counts and unknown fragments
-under `missing`. Observation and CarePlan fields use known German translations.
+under `missing`. Per-document final hashes and derived processing statuses are recorded
+in `documentMappings`; see [document classification](synthea-clinical-import.md#document-classification-and-processing-status). Observation and CarePlan fields use known German translations.
 If an unfamiliar label has a known code, its German catalogue label is used.
 Untranslated free text remains in the report and source bundle; its workbook field
 stays empty when no German replacement is available. CarePlan activity descriptions

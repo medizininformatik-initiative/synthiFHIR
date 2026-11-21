@@ -39,6 +39,16 @@ public class ClinicalSelectionWorkflowTest {
         table(type, List.of(row));
     }
     private void table(TableIdentifier type, List<Map<String, String>> rows) throws Exception {
+        if (type == TableIdentifier.DocumentReference) {
+            var documents = new ArrayList<Map<String, String>>();
+            for (var source : rows) {
+                var document = new HashMap<>(source);
+                document.put("Dokument-ID", "document-" + documents.size());
+                document.put("Embed", "Ja");
+                documents.add(document);
+            }
+            rows = documents;
+        }
         Set<String> headers = new LinkedHashSet<>(type.getMandatoryColumnNames());
         rows.forEach(row -> headers.addAll(row.keySet()));
         try (var writer = Files.newBufferedWriter(input.resolve("case_" + type + ".csv"));

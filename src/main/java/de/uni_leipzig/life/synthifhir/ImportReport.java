@@ -13,6 +13,7 @@ public final class ImportReport {
     public String status = "COMPLETE";
     public final Map<String, Table> tables = new LinkedHashMap<>();
     public final List<Issue> issues = new ArrayList<>();
+    public final List<Map<String, String>> documentIssues = new ArrayList<>();
     public final List<Map<String, String>> timeShifts = new ArrayList<>();
     public final List<Map<String, String>> contactEndDerivations = new ArrayList<>();
     public final List<Map<String, String>> outputSelections = new ArrayList<>();

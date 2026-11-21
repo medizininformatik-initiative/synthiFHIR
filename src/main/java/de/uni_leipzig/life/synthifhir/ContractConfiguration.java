@@ -58,7 +58,7 @@ public final class ContractConfiguration {
             var parts = new ArrayList<String>();
             if (value.isArray()) value.forEach(item -> parts.add(item.asText()));
             properties.setProperty(option.get("propertyName").asText(),
-                    value.isArray() ? String.join(",", parts) : value.asText());
+                    option.path("type").asText().equals("array") ? value.toString() : value.isArray() ? String.join(",", parts) : value.asText());
         }
         var writer = new java.io.StringWriter();
         try { properties.store(writer, "Converter configuration"); }
@@ -212,7 +212,21 @@ public final class ContractConfiguration {
     private static JsonNode parseValue(String text, JsonNode option) {
         String type = option.get("type").asText();
         JsonNode value;
-        if (type.equals("boolean")) value = BooleanNode.valueOf(booleanValue(text));
+        if (type.equals("array")) {
+            try { value = JSON.readTree(text); }
+            catch (IOException error) { throw invalid("Invalid JSON list: " + option.get("propertyName").asText()); }
+            if (value == null || !value.isArray()) throw invalid("Expected JSON list");
+            for (JsonNode item : value) {
+                if (option.path("items").path("type").asText().equals("string")) {
+                    if (!item.isTextual()) throw invalid("Expected status code string");
+                } else {
+                    if (!item.isObject()) throw invalid("Expected coding object");
+                    for (var field : item.properties())
+                        if (!Set.of("system", "code", "display").contains(field.getKey()) || !field.getValue().isTextual())
+                            throw invalid("Invalid coding field: " + field.getKey());
+                }
+            }
+        } else if (type.equals("boolean")) value = BooleanNode.valueOf(booleanValue(text));
         else if (type.equals("integer") || option.get("default").isNumber()) {
             long number;
             try { number = Long.parseLong(text); }
@@ -320,6 +334,14 @@ public final class ContractConfiguration {
         return binding.path("kind").asText().equals("java-property") && !binding.has("values") && !binding.has("semantics");
     }
 
+    boolean allChoicesSelected(String id) {
+        Set<String> selected = new HashSet<>();
+        effective(id).ifPresent(value -> value.forEach(item -> selected.add(item.asText())));
+        for (JsonNode choice : definitions.get(id).get("choices"))
+            if (!selected.contains(choice.asText())) return false;
+        return true;
+    }
+
     public List<String> unsupportedSettings() {
         List<String> errors = new ArrayList<>();
         definitions.forEach((id, option) -> {
@@ -333,6 +355,7 @@ public final class ContractConfiguration {
                     "contact.department.partOf", "contact.ward-service.partOf",
                     "contact.procedureDiagnoses.enabled", "contact.procedureDiagnoses.levels",
                     "terminology.versionOutput", "checks.fhirValidation", "output.formats", "output.patientsPerFile").contains(id)
+                    && !id.startsWith("document.")
                     && !ClinicalTimeShift.supports(id)
                     && !ClinicalEncounterAssignment.supports(id)
                     && !SupportResourceIdentity.supports(id)

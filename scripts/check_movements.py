@@ -3,6 +3,37 @@ from check_contact_selection import checked_contacts, contact_selected
 from check_output_selection import identity_key, place_id, descriptive_reference
 
 
+def check_organizations(resources, expected):
+    actual = [(r['id'], r.get('name'), r.get('active')) for r in resources if r['resourceType'] == 'Organization']
+    assert sorted(actual) == sorted((key, name, True) for key, name in expected.items()), 'Station organizations differ'
+
+
+def check_station_providers(contacts, encounters, options):
+    mode = options.get('ENCOUNTER_STATION_SERVICE_PROVIDER', 'none')
+    stations = {}
+    for key, contact in contacts.items():
+        if not contact_selected(contact, options):
+            continue
+        encounter = encounters[key]
+        row = contact.get('row', {})
+        station = row.get('Station')
+        provider = None
+        contained = {}
+        if station and mode != 'none':
+            path = identity_key(row['Fachabteilung'], 'wa', station)
+            identifier = place_id('Organization', path, key, options)
+            reference = 'Organization/' + identifier
+            if mode == 'contained':
+                reference = '#' + identifier
+                contained[identifier] = station
+            elif mode == 'generate-reference':
+                stations[identifier] = station
+            provider = {'reference': reference, 'display': station}
+        assert encounter.get('serviceProvider') == provider, 'Station serviceProvider differs: ' + key
+        check_organizations(encounter.get('contained', []), contained)
+    return stations
+
+
 def check_movements(source, target, report):
     contacts = checked_contacts(source, target, report)
     options = report.get('converterOptions', {})

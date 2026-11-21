@@ -28,6 +28,7 @@ public final class DiagnosisOutputPolicy {
         this.configuration = configuration;
         if (configuration == null) return;
         Set<String> roles = selected(configuration, "contact.diagnoses.roles");
+        boolean unrestrictedRoles = configuration.allChoicesSelected("contact.diagnoses.roles");
         Map<String, Resource> conditions = new LinkedHashMap<>();
         for (Resource resource : resources)
             if (resource instanceof Condition || resource instanceof Procedure)
@@ -41,7 +42,7 @@ public final class DiagnosisOutputPolicy {
                 if (!procedure && !isCondition(diagnosis)) continue;
                 String group = procedure ? "contact.procedureDiagnoses" : "contact.diagnoses";
                 if (!configuration.effective(group + ".enabled").map(v -> v.asBoolean()).orElse(false)) continue;
-                if (!procedure && (!diagnosis.hasUse() || diagnosis.getUse().getCoding().stream()
+                if (!procedure && !unrestrictedRoles && (!diagnosis.hasUse() || diagnosis.getUse().getCoding().stream()
                         .noneMatch(c -> ROLE_SYSTEM.equals(c.getSystem()) && roles.contains(c.getCode())))) continue;
                 Set<String> levels = selected(configuration, group + ".levels");
                 String id = diagnosis.getCondition().getReferenceElement().getIdPart();

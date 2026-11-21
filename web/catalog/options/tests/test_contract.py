@@ -30,7 +30,7 @@ class ContractConsistencyTest(unittest.TestCase):
                 self.assertTrue(set(value) <= set(option['choices']), key)
             else:
                 self.assertIs(type(value), {'integer': int, 'string': str,
-                                           'boolean': bool}[kind], key)
+                                           'boolean': bool, 'array': list}[kind], key)
             if 'minimum' in option:
                 self.assertGreaterEqual(value, option['minimum'], key)
             conditions = list(option.get('enabledWhen', []))

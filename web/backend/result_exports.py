@@ -31,7 +31,7 @@ def publish(folder, snapshot, manifest):
         if not source.is_file() or item.get('error'):
             continue
         destination.mkdir(parents=True, exist_ok=True)
-        name = archive_names.filename(item['name'], archive_names.patient_count(source), str(index))
+        name = archive_names.filename(item['name'], archive_names.patient_count(item), str(index))
         target = destination / f'{index + 1:02d}-{name}'
         pending = target.with_name('.' + target.name + '.partial')
         try:

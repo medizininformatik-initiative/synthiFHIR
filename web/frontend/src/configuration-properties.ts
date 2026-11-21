@@ -24,6 +24,7 @@ function encode(value: Value): string {
   return escapeValue(Array.isArray(value) ? value.join(',') : String(value))
 }
 function decode(value: string, option: Option): Value {
+  if (option.type === 'array') return JSON.parse(value)
   if (option.type === 'boolean') {
     if (!['true', 'false'].includes(value)) throw new Error('Expected true or false')
     return value === 'true'
@@ -62,7 +63,7 @@ export function exportPropertiesConfiguration(input: Configuration, language: 'd
     comment(t(option.helpKey))
     for (const choice of option.choices ?? [])
       comment(`${t('app.config.fileChoices')}: ${choice} — ${t(option.choiceLabelKeys![String(choice)])}`)
-    comment(`${t('app.config.fileDefault')}: ${encode(option.default)}`)
+    comment(`${t('app.config.fileDefault')}: ${option.type === 'array' ? JSON.stringify(option.default) : encode(option.default)}`)
     const value = config.values[option.id]
     const choiceDeps = option.choiceDependencies?.[String(value)]
     const inactive = !optionEnabled(option.id, config.values) || unmetDependencies(choiceDeps, config.values).length > 0
@@ -78,7 +79,7 @@ export function exportPropertiesConfiguration(input: Configuration, language: 'd
       }).join('; ')
       comment(t('app.config.requires').replace('{labels}', labels))
     }
-    assignment(option.propertyName, value, inactive)
+    assignment(option.propertyName, option.type === 'array' ? JSON.stringify(value) : value, inactive)
   }
   lines.push('')
   comment(t('app.config.fileDar'))

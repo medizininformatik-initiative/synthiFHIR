@@ -57,7 +57,13 @@ def localize_document_identity(text, patient):
             if re.search(r'\D\d+$', value): aliases[value] = target
     if not aliases: return text, 0
     pattern = r'(?<!\w)(?:'+'|'.join(re.escape(k) for k in sorted(aliases, key=len, reverse=True))+r')(?!\w)'
-    return re.subn(pattern, lambda match:aliases[match.group()], text)
+    replacements = 0
+    def replace(match):
+        nonlocal replacements
+        value = aliases[match.group()]
+        replacements += value != match.group()
+        return value
+    return re.sub(pattern, replace, text), replacements
 
 
 def check_patient(source, target, report):

@@ -33,6 +33,8 @@ class ApiTests(QueueFixture):
         with zipfile.ZipFile(buffer, 'w') as archive:
             archive.writestr('output/run-test/fhir/p.json', json.dumps({'resourceType': 'Patient', 'id': 'p'}))
         (store.ROOT / 'jobs' / job_id / 'result.zip').write_bytes(buffer.getvalue())
+        (store.ROOT / 'jobs' / job_id / 'datasets.json').write_text(json.dumps(
+            {'datasets': [{'inspection': {'patients': 1}}], 'artifacts': []}))
         self.assertTrue(self.client.get('/api/jobs').json()[0]['download_available'])
         response = self.client.get(f'/api/jobs/{job_id}/download')
         self.assertEqual(buffer.getvalue(), response.content)

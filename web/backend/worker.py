@@ -107,6 +107,9 @@ def execute(job_id):
             from pathlib import Path
             command = [sys.executable, str(Path(__file__).with_name('bulk_generation.py')), str(folder)]
         environment = dict(os.environ)
+        environment.pop('SYNTHIFHIR_SERIES_DIRECTORY', None)
+        if snapshot.get('standardSeriesVersion') and not native:
+            environment['SYNTHIFHIR_SERIES_DIRECTORY'] = str(folder)
         environment.pop('SYNTHIFHIR_CONSENT_SEED', None)
         environment.pop('SYNTHIFHIR_CONSENT_CONTEXT', None)
         if kind == 'synthea-generation' and snapshot['generation'].get('syntheticConsent'):
@@ -144,6 +147,9 @@ def execute(job_id):
             (folder / 'generation-result.json').write_text(json.dumps({
                 'generatedPatients': generation.patient_count(generated), 'importedPatients': len(summary.get('results', [])),
                 'failedPatients': len(summary.get('failures', []))}))
+        if snapshot.get('standardSeriesVersion') and state == 'succeeded' and not failure:
+            import standard_series
+            standard_series.complete(folder, snapshot)
         if not bulk and state in {"succeeded", "failed"}:
             if not failure:
                 datasets.build(job_id, snapshot, lambda: stopping or bool(store.get(job_id)["cancel"]))

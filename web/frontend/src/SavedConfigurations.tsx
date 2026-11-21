@@ -99,7 +99,7 @@ export function SavedConfigurations({ language, configuration, valid, onLoad, ed
   const requiresValid = edit && ['create', 'replace'].includes(edit.action)
   return <>
     <div className="mt-5 flex flex-wrap gap-2">
-      <Button onClick={() => begin('create')} disabled={!valid || busy}>{t('app.saved.create')}</Button>
+      <Button tooltip={t('tooltip.saved.create')} onClick={() => begin('create')} disabled={!valid || busy}>{t('app.saved.create')}</Button>
       {editorActions}
     </div>
     <section aria-label={t('app.saved.title')} className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -116,7 +116,7 @@ export function SavedConfigurations({ language, configuration, valid, onLoad, ed
       </div>
       {item && <div className="mt-3 flex flex-wrap gap-2">
         {(['load', 'replace', 'rename', 'duplicate', 'delete'] as Action[]).map(action =>
-          <Button key={action} variant="outline" disabled={action === 'replace' && !valid} onClick={() => begin(action)}>{t(actionKeys[action])}</Button>)}
+          <Button key={action} tooltip={t(`tooltip.saved.${action}`)} variant="outline" disabled={action === 'replace' && !valid} onClick={() => begin(action)}>{t(actionKeys[action])}</Button>)}
       </div>}
       {edit && <form className="mt-4 rounded-lg border border-slate-300 bg-white p-4" onSubmit={e => { e.preventDefault(); void submit() }}>
         <p className="text-sm font-medium">{t(actionKeys[edit.action])}{edit.item && edit.action !== 'create' ? `: ${edit.item.name}` : ''}</p>

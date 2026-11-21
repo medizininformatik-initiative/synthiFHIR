@@ -10,21 +10,21 @@ import bulk_archives
 
 
 class ArchiveNameTests(unittest.TestCase):
-    def test_actual_unique_output_patients_across_formats(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / 'result.zip'
-            with zipfile.ZipFile(path, 'w') as archive:
-                archive.writestr('output/run/fhir/p.json.gz', gzip.compress(json.dumps({
-                    'resourceType': 'Bundle', 'entry': [{'resource': {'resourceType': 'Patient', 'id': 'p'}}]
-                }).encode()))
-                archive.writestr('output/run/fhir/p.xml', '<Patient xmlns="http://hl7.org/fhir"><id value="p"/></Patient>')
-                archive.writestr('output/run/fhir/q.json', '{"resourceType":"Patient","id":"q"}')
-                archive.writestr('output/run/fhir/org.json', '{"resourceType":"Organization","id":"org"}')
-                archive.writestr('output/run/details/source.json', '{"resourceType":"Patient","id":"excluded"}')
-            self.assertEqual(2, archive_names.patient_count(path, result=True))
+    def test_saved_output_counts_and_unknown_or_overlapping_datasets(self):
+        first = {'inspection': {'patients': 2}}
+        self.assertEqual(2, archive_names.patient_count(first))
+        self.assertEqual(2, archive_names.run_patient_count({'datasets': [first]}))
+        self.assertEqual(0, archive_names.patient_count({'inspection': {'patients': 0}}))
+        for value in [None, -1, True, '2']:
+            self.assertIsNone(archive_names.patient_count({'inspection': {'patients': value}}))
+        self.assertIsNone(archive_names.patient_count({}))
+        self.assertIsNone(archive_names.run_patient_count({}))
+        self.assertIsNone(archive_names.run_patient_count({'datasets': [first, first]}))
 
     def test_short_safe_names(self):
         self.assertEqual('synthifhir-17Pat-id.zip', archive_names.filename('', 17, 'id'))
+        self.assertEqual('Kohorte.zip', archive_names.filename('Kohorte', None, 'id'))
+        self.assertEqual('synthifhir-id.zip', archive_names.filename('', None, 'id'))
         self.assertEqual('Kohorte-17Pat.zip', archive_names.filename('Kohorte', 17, 'id'))
         self.assertEqual('Test-Name-0Pat.zip', archive_names.filename('../Test/Name', 0, 'id'))
 

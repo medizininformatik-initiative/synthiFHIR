@@ -34,6 +34,11 @@ a `dar` object keyed by DAR field ID and an `identifierRules` array. Missing
 values use contract defaults. JSON Schema describes accepted shapes; the Java
 adapter applies defaults and validates clinical dependencies. Unknown keys,
 wrong types, unsupported versions and conflicting duplicate values are errors.
+Document type codings and NLP status lists use ordered JSON arrays in `values`
+(`document.type.values` and `document.nlp.values`). Their corresponding `.mode`
+options select input, fill, replace, or NLP omission. See
+[document settings](../../README.md#document-coding-and-nlp-settings) for application rules.
+
 Saved configurations contain converter settings; FHIR profiles define resource
 structure and constraints.
 
@@ -250,7 +255,13 @@ selections remain available and are commented in the Properties export.
 `CONTACT_DIAGNOSES_ROLES` selects codes from
 `http://terminology.hl7.org/CodeSystem/diagnosis-role`, recorded in
 `Encounter.diagnosis.use.coding.code`: CC, CM, AD, DD, pre-op, post-op and billing.
-The role belongs to the contact association. All roles are selected by default.
+The role belongs to the contact association. Selecting all listed roles (the default)
+means no role filter: contact links with missing or unrecognized roles are retained
+without assigning a role. Selecting a subset retains only links with a matching
+code from this code system; links without a matching role are omitted. Selecting
+no roles omits all Condition diagnosis links. The Condition resources themselves
+remain available. Missing input roles are never replaced with `CM`.
+
 Selected contact levels determine the targets automatically. An input contact
 already at the target level keeps its reference. Assignment upward follows the
 original parent hierarchy. Assignment downward uses `Condition.recordedDate`

@@ -1,4 +1,4 @@
-"""Continue an immutable bulk series from its committed terminal counters."""
+"""Continue an immutable Synthea series from its committed terminal counters."""
 import json
 import zipfile
 from uuid import UUID
@@ -23,8 +23,10 @@ def completion(folder, snapshot, counters):
             remainder = bulk_sources.description(folder / bulk_sources.REMAINDER)
             if remainder['offset'] != position % 100 or remainder['seed'] != bulk_plan.seed_at(snapshot['generation']['patientSeed'], position // 100):
                 raise ValueError('Source remainder does not match completed patients')
-    return {**({'remainder': remainder} if snapshot.get('bulkSourceVersion') else {}), 'schemaVersion': 1, 'snapshotSha256': store.digest(folder / 'snapshot.json'),
-            'completed': snapshot['generation']['population'], 'identifierCounters': counters,
+    standard = snapshot.get('standardSeriesVersion')
+    completed = len(json.loads((folder / 'series-patients.json').read_text())) if standard else snapshot['generation']['population']
+    return {**({'sourcePatientsSha256': store.digest(folder / 'series-patients.json')} if standard else {}), **({'remainder': remainder} if snapshot.get('bulkSourceVersion') else {}), 'schemaVersion': 1, 'snapshotSha256': store.digest(folder / 'snapshot.json'),
+            'completed': completed, 'identifierCounters': counters,
             'identifierHistorySha256': store.digest(folder / 'bulk-identifier-history.sqlite')}
 
 
@@ -32,7 +34,7 @@ def state(job_id):
     folder = store.ROOT / 'jobs' / job_id
     snapshot = json.loads((folder / 'snapshot.json').read_text())
     settings = snapshot.get('generation', {})
-    if settings.get('executionMode') != 'bulk' or settings.get('singlePersonSeed') or (not snapshot.get('bulkSourceVersion') and settings['population'] % 100):
+    if settings.get('singlePersonSeed') or (not snapshot.get('standardSeriesVersion') and (settings.get('executionMode') != 'bulk' or (not snapshot.get('bulkSourceVersion') and settings['population'] % 100))):
         raise store.SubmissionConflict('This run has no saved source remainder for continuation')
     try:
         saved = json.loads((folder / STATE_FILE).read_text())
@@ -64,18 +66,26 @@ def latest(job_id):
     return job_id
 
 
+def next_seed(snapshot, completed):
+    # Standard runs consume one complete generator invocation; bulk runs consume
+    # ordered 100-patient blocks and retain a partially consumed source block.
+    step = 1 if snapshot.get('standardSeriesVersion') else (snapshot.get('continuation', {}).get('sourceOffset', 0) + completed) // 100
+    return bulk_plan.seed_at(snapshot['generation']['patientSeed'], step)
+
+
 def preview(job_id):
     latest_id = latest(job_id)
     with store.run_lock(latest_id):
         snapshot, saved = state(latest_id)
         settings = dict(snapshot['generation'])
-        settings.update(patientSeed=bulk_plan.seed_at(settings['patientSeed'], (snapshot.get('continuation', {}).get('sourceOffset', 0) + settings['population']) // 100), timestampSeeds=False)
+        settings.update(patientSeed=next_seed(snapshot, saved['completed']), timestampSeeds=False)
         previous = snapshot.get('continuation', {})
         return {'sourceRun': latest_id, 'requestedRun': job_id, 'seriesRoot': previous.get('seriesRoot', latest_id),
                 'completedBefore': previous.get('completedBefore', 0) + saved['completed'],
                 'sourceOffset': (saved.get('remainder') or {}).get('offset', 0),
                 'generation': settings, 'datasetName': result_exports.dataset_name(snapshot),
                 'configurationProperties': snapshot['profile'].get('optionsProperties'),
+                'tableFormat': snapshot.get('tableFormat'), 'diagnostics': snapshot.get('diagnostics', False),
                 'nextCounters': {key: str(value + 1) for key, value in saved['identifierCounters'].items()}}
 
 
@@ -91,7 +101,7 @@ def create(job_id, population, request_id=None):
             snapshot, saved = state(job_id)
             settings = dict(snapshot['generation'])
             settings.update(population=population,
-                            patientSeed=bulk_plan.seed_at(settings['patientSeed'], (snapshot.get('continuation', {}).get('sourceOffset', 0) + saved['completed']) // 100))
+                            patientSeed=next_seed(snapshot, saved['completed']))
             previous = snapshot.get('continuation', {})
             continuation = {'seriesNumber': result_exports.series_number(snapshot) + 1, 'sourceRun': job_id, 'seriesRoot': previous.get('seriesRoot', job_id),
                             'completedBefore': previous.get('completedBefore', 0) + saved['completed'],
@@ -100,7 +110,8 @@ def create(job_id, population, request_id=None):
                             'sourceOffset': (saved.get('remainder') or {}).get('offset', 0),
                             'remainder': saved.get('remainder')}
             store.prepare_job(prepared, 'synthea-generation', 'default', snapshot['profile'].get('optionsProperties'),
-                              generation_settings=settings, dataset_name=result_exports.dataset_name(snapshot), continuation=continuation)
+                              generation_settings=settings, dataset_name=result_exports.dataset_name(snapshot), continuation=continuation,
+                              table_format=snapshot.get('tableFormat'), diagnostics=snapshot.get('diagnostics', False))
             new = json.loads((store.ROOT / 'jobs' / prepared[-1] / 'snapshot.json').read_text())
             for key in ('converterSha256', 'syntheaImportSha256', 'syntheaGeneratorSha256', 'syntheaRevision'):
                 if new.get(key) != snapshot.get(key):

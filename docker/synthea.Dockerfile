@@ -15,13 +15,13 @@ COPY src ./src
 COPY web/catalog/options/contract.json web/catalog/options/contract.json
 COPY web/catalog/dar/generated/catalog.json web/catalog/dar/generated/catalog.json
 COPY FHIR_Testdatengenerator_Vorlage.xlsx FHIR_Testdatengenerator_Interpolar_Demo.xlsx ./
-COPY input/FHIR_Testdatengenerator_Vorlage.xlsx input/
+COPY input/FHIR_Testdatengenerator_Vorlage.xlsx input/document-example.txt input/
 RUN --mount=type=cache,id=synthifhir-maven,target=/root/.m2,sharing=locked \
     mvn -B test package
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    ca-certificates tzdata python3 openjdk-17-jdk-headless libreoffice-calc \
+    ca-certificates tzdata python3 openjdk-21-jdk-headless libreoffice-calc \
     libreoffice-java-common fonts-crosextra-carlito \
     && rm -rf /var/lib/apt/lists/* \
     && rm -f /etc/timezone /etc/localtime \
@@ -36,6 +36,7 @@ COPY src/main/resources/workbook-absent-reasons.json ./src/main/resources/workbo
 COPY src/main/resources/ucum ./src/main/resources/ucum
 COPY third-party ./third-party
 COPY LICENSE FHIR_Testdatengenerator_Vorlage.xlsx ./
+COPY input/document-example.txt ./input/
 RUN PYTHONPATH=/app/scripts python3 -c "from check_dar import catalogue; catalogue()"
 ENTRYPOINT ["python3", "/app/scripts/run_synthea_cases.py"]
 

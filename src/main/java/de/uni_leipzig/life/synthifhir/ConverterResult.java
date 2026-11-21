@@ -35,6 +35,7 @@ import de.uni_leipzig.life.synthifhir.converter.ContactConversionState;
  */
 public class ConverterResult {
     public org.hl7.fhir.r4.model.CarePlan currentCarePlan;
+    public org.hl7.fhir.r4.model.DocumentReference currentDocumentReference;
     public final List<Map<String, String>> contactEndDerivations = new ArrayList<>();
     private final ContactConversionState contactState =
             new ContactConversionState();

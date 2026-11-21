@@ -11,7 +11,7 @@ FROM amazoncorretto:17.0.21-alpine
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50"
 
 COPY --from=maven_tool_chain /tmp/target/synthifhir.jar /app/synthifhir.jar
-COPY input/FHIR_Testdatengenerator_Vorlage.xlsx /app/input/
+COPY input/FHIR_Testdatengenerator_Vorlage.xlsx input/document-example.txt /app/input/
 COPY docker/docker-entrypoint.sh /app/
 
 WORKDIR /app

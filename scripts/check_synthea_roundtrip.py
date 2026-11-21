@@ -9,14 +9,14 @@ from pathlib import Path
 import sys
 from diagnosis_mapping import map_diagnosis, mapping_metadata
 from check_clinical_roundtrip import check_clinical
-from check_movements import check_movements
+from check_movements import check_movements, check_station_providers, check_organizations
 from german_demographics import check_patient
 from check_output_selection import enabled, selected, patient_owner
 from check_contact_selection import contact_expectations, contact_selected
 from check_clinical_references import matching_contact
 
 
-def check(source, target, report):
+def check(source, target, report, bundle_stations=None):
     from check_dar import checked_original_dar
     target = checked_original_dar(source, target, report)
     from check_encounter_policies import checked_original_periods
@@ -107,7 +107,12 @@ def check(source, target, report):
     movement_check = check_movements(source, target, report)
     source_encounters = sum(c['level'] == 'facility' and contact_selected(c, options) for c in expected_contacts.values())
     assert Counter(r['resourceType']for r in dst if r['resourceType'] in ('Patient','Encounter','Condition'))==Counter(Patient=len(patients),Encounter=source_encounters+movement_check['contacts'],Condition=sum(original.values()))
-    clinical = check_clinical(source, target, report)
+    stations = check_station_providers(expected_contacts, encounters, options)
+    if bundle_stations is None:
+        check_organizations(dst, stations)
+    else:
+        bundle_stations.update(stations)
+    clinical = check_clinical(source, target, report, len(stations))
     if patients:
         demographic_check['identity'] = 'configured synthetic identity verified'
         demographic_check['clinicalFacts'] = 'verified against configured output settings'
@@ -152,8 +157,10 @@ def check_configured(source, target, report, options, patient_ids):
                 pid = reference.removeprefix('Patient/')
         assert pid in groups, 'Unexpected patient attribution: ' + pid
         groups[pid].append(entry)
-    copies = [check(source, {'entry': groups[pid]}, dict(report, outputPatient=pid, converterOptions=options, iteration=iteration))
+    bundle_stations = {}
+    copies = [check(source, {'entry': groups[pid]}, dict(report, outputPatient=pid, converterOptions=options, iteration=iteration), bundle_stations)
               for iteration, pid in enumerate(patient_ids)]
+    check_organizations((entry['resource'] for entry in target['entry']), bundle_stations)
     if len(copies) == 1:
         result = copies[0]
     else:

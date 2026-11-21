@@ -27,6 +27,21 @@ class QueueFixture(unittest.TestCase):
 
 
 class QueueTests(QueueFixture):
+    def test_unknown_input_kind_preserves_run_listing(self):
+        import json
+        job = store.create('starter', 'default')
+        snapshot_path = store.ROOT / 'jobs' / job / 'snapshot.json'
+        snapshot = json.loads(snapshot_path.read_text())
+        snapshot['inputKind'] = 'future-input-kind'
+        snapshot_path.chmod(0o600)
+        snapshot_path.write_text(json.dumps(snapshot))
+        original = snapshot_path.read_bytes()
+        listed = store.jobs()
+        self.assertEqual([job], [item['id'] for item in listed])
+        self.assertEqual('future-input-kind', listed[0]['input_kind'])
+        self.assertFalse(listed[0]['editor_available'])
+        self.assertEqual(original, snapshot_path.read_bytes())
+
     def test_duration_excludes_waiting_and_finishes_at_completion(self):
         with patch.object(store.time, 'time', return_value=10):
             job = store.create('starter', 'default')

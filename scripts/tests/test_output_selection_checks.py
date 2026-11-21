@@ -8,6 +8,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from workbook_records import record
 from check_contact_selection import checked_contacts
+from check_movements import check_station_providers, check_organizations
 from check_clinical_references import matching_contact
 from check_medication_selection import check_medication_references
 from check_observation_units import checked_observation_units
@@ -88,6 +89,32 @@ class OutputSelectionChecks(unittest.TestCase):
                 wrong['entry'].pop()
                 with self.assertRaisesRegex(AssertionError, 'identities'):
                     checked_contacts(source, wrong, report)
+
+    def test_station_references_identify_the_expected_ward_even_when_both_targets_exist(self):
+        options = {'ENCOUNTER_STATION_SERVICE_PROVIDER': 'generate-reference'}
+        ids = {'A': 'Organization-3646a660-5c1a-3217-80be-162daf8d9e7c',
+               'B': 'Organization-a62ff943-8a92-3e50-9851-0433fbe07ab5'}
+        contacts = {ward: {'level': 'ward-service', 'cls': 'IMP', 'row': {'Fachabteilung': 'Surgery', 'Station': ward}}
+                    for ward in ids}
+        encounters = {ward: {'serviceProvider': {'reference': 'Organization/' + identifier, 'display': ward}}
+                      for ward, identifier in ids.items()}
+        organizations = [{'resourceType': 'Organization', 'id': identifier, 'name': ward, 'active': True}
+                         for ward, identifier in ids.items()]
+
+        def compare():
+            check_organizations(organizations, check_station_providers(contacts, encounters, options))
+
+        compare()
+        encounters['A']['serviceProvider'] = encounters['B']['serviceProvider']
+        with self.assertRaisesRegex(AssertionError, 'serviceProvider differs: A'):
+            compare()
+        del encounters['A']['serviceProvider']
+        organizations.pop(0)
+        with self.assertRaisesRegex(AssertionError, 'serviceProvider differs: A'):
+            compare()
+        encounters['A']['serviceProvider'] = {'reference': 'Organization/' + ids['A'], 'display': 'A'}
+        with self.assertRaisesRegex(AssertionError, 'Station organizations differ'):
+            compare()
 
     def test_generic_contact_and_disabled_encounters(self):
         source, target, report = self.contacts()

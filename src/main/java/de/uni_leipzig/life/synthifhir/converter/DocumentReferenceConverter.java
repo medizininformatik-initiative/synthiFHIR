@@ -41,16 +41,59 @@ public class DocumentReferenceConverter extends Converter {
      * correspunding excel sheet.
      */
     public static enum DocumentReference_Columns implements TableColumnIdentifier {
+        Dokument_ID {
+            @Override public String toString() { return DocumentRows.ID; }
+        },
+        NLPStatus {
+            @Override public boolean isMandatory() { return false; }
+        },
         Dateipfad,
         Embed,
     }
 
-    /**  */
-    // No official profile available
-    // Base is: http://hl7.org/fhir/R4/documentreference.html
-    // String PROFILE =
-    // "https://www.medizininformatik-initiative.de/fhir/core/modul-prozedur/StructureDefinition/Document";
-    // https://simplifier.net/medizininformatikinitiative-modulprozeduren/document
+    public static final String NLP_EXTENSION = "https://www.medizininformatik-initiative.de/fhir/ext/modul-dokument/StructureDefinition/mii-ex-dokument-nlp-processing-status";
+    public static final String NLP_SYSTEM = "https://www.medizininformatik-initiative.de/fhir/ext/modul-dokument/CodeSystem/mii-cs-dokument-nlp-processing-status";
+    public static final java.util.Set<String> NLP_CODES = java.util.Set.of("unprocessed", "preprocessed", "format-change",
+            "content-change", "annotated", "preanno", "deid", "semantic", "surrogated");
+
+    private String value(String column) { return hasColumn(column) ? get(column) : null; }
+
+    private void appendCodings(DocumentReference document) {
+        CodeableConcept type = ClinicalValues.concept(ClinicalValues.get(this, ClinicalValues.Column.Dokumentcode),
+                ClinicalValues.get(this, ClinicalValues.Column.Dokumentcodesystem),
+                ClinicalValues.get(this, ClinicalValues.Column.Dokumentbezeichner));
+        if (!type.isEmpty()) {
+            if (type.hasCoding()) {
+                if (type.hasText()) type.getCodingFirstRep().setDisplay(type.getText());
+                type.getCoding().forEach(document.getType()::addCoding);
+            } else if (type.hasText()) {
+                String previous = document.getType().getText();
+                document.getType().setText(previous == null ? type.getText() : previous + "\n" + type.getText());
+            }
+        }
+        String status = value("NLPStatus");
+        if (DocumentRows.present(status)) {
+            var extension = document.getExtensionByUrl(NLP_EXTENSION);
+            if (extension == null) extension = document.addExtension().setUrl(NLP_EXTENSION).setValue(new CodeableConcept());
+            ((CodeableConcept)extension.getValue()).addCoding().setSystem(NLP_SYSTEM).setCode(status);
+        }
+    }
+
+    /** Informational diagnostics; explicit codes are never changed or discarded. */
+    public static List<String> nlpIssues(DocumentReference document) {
+        var extension = document.getExtensionByUrl(NLP_EXTENSION);
+        if (extension == null) return List.of();
+        var codes = ((CodeableConcept)extension.getValue()).getCoding().stream()
+                .map(org.hl7.fhir.r4.model.Coding::getCode).collect(java.util.stream.Collectors.toSet());
+        List<String> issues = new java.util.ArrayList<>();
+        for (String code : codes) {
+            if (!NLP_CODES.contains(code)) issues.add("Unknown NLPStatus: " + code);
+            String parent = java.util.Set.of("format-change", "content-change").contains(code) ? "preprocessed"
+                    : java.util.Set.of("preanno", "deid", "semantic").contains(code) ? "annotated" : null;
+            if (parent != null && !codes.contains(parent)) issues.add("NLPStatus " + code + " requires " + parent);
+        }
+        return issues;
+    }
 
     /**
      * @param record
@@ -67,23 +110,31 @@ public class DocumentReferenceConverter extends Converter {
 
     @Override
     protected List<Resource> convertInternal() throws Exception {
+        String sourceId = value(DocumentRows.ID);
+        if (!DocumentRows.present(sourceId)) {
+            var errors = DocumentRows.continuationErrors(this::value);
+            if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("; ", errors));
+            if (result.currentDocumentReference == null)
+                throw new IllegalArgumentException("Continuation requires a preceding document with Dokument-ID");
+            appendCodings(result.currentDocumentReference);
+            return List.of();
+        }
+        result.currentDocumentReference = null;
+        var errors = new DocumentRows().accept(this::value);
+        if (!errors.isEmpty()) throw new IllegalArgumentException(String.join("; ", errors));
         DocumentReference documentReference = new DocumentReference();
         int nextId = result.getNextId(DocumentReference, DocumentReference.class, START_ID_DOCUMENT_REFERENCE);
         String encounterId = getEncounterId();
         String id = (isBlank(encounterId) ? getPatientId() : encounterId) + ResourceIdSuffix.DOCUMENT_REFERENCE
                 + nextId;
         documentReference.setId(id);
-        // No official profile available
-        // documentReference.setMeta(new Meta().addProfile(PROFILE));
         documentReference.setSubject(getPatientReference());
         String timestamp = ClinicalValues.get(this, ClinicalValues.Column.Ausgabezeitpunkt);
         documentReference.setDateElement(ClinicalValues.instant(timestamp));
         String status = ClinicalValues.get(this, ClinicalValues.Column.Status);
         if (status != null) documentReference.setStatusElement(InputCode.of(documentReference.getStatusElement(), status));
 
-        documentReference.setType(ClinicalValues.concept(ClinicalValues.get(this, ClinicalValues.Column.Dokumentcode),
-                ClinicalValues.get(this, ClinicalValues.Column.Dokumentcodesystem),
-                ClinicalValues.get(this, ClinicalValues.Column.Dokumentbezeichner)));
+        appendCodings(documentReference);
 
         // TODO: Enable DocumentResource securityLabel filling by excel input data
         CodeableConcept securityLabel1 = createCodeableConcept(
@@ -96,14 +147,14 @@ public class DocumentReferenceConverter extends Converter {
         context.setEncounter(getEncounterReferences());
         documentReference.setContext(context);
 
-        boolean embed = isYesValue(get(Embed));
+        boolean embed = "Ja".equalsIgnoreCase(get(Embed));
         String filePath = get(Dateipfad);
-        Path path = !isBlank(filePath) ? Paths.get(filePath) : null;
         String text = ClinicalValues.get(this, ClinicalValues.Column.Dokumenttext);
-        Attachment attachment = text == null ? createAttachment(path, embed)
+        Attachment attachment = !embed || text == null ? createAttachment(Paths.get(filePath), embed)
                 : new Attachment().setContentType("text/plain; charset=utf-8")
                     .setData(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         if (!attachment.isEmpty()) documentReference.setContent(singletonList(new DocumentReferenceContentComponent(attachment)));
+        result.currentDocumentReference = documentReference;
         return singletonList(documentReference);
     }
 
@@ -131,9 +182,6 @@ public class DocumentReferenceConverter extends Converter {
             }
         } else {
             attachment.setUrl(path.toUri().toURL().toExternalForm());
-            if (file.isFile()) {
-                attachment.setSize((int) Files.size(path));
-            }
         }
         String contentType = getContentType(file);
         // available type:
@@ -148,7 +196,7 @@ public class DocumentReferenceConverter extends Converter {
         // When attachment was first created
         // For now: take file creation time
         // Better (?): date, when document was written
-        if (file.isFile() && file.canRead()) {
+        if (embed && file.isFile() && file.canRead()) {
             attachment.setCreation(new Date(((FileTime) Files.getAttribute(path, "creationTime")).toMillis()));
         }
         return attachment;

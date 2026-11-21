@@ -5,7 +5,7 @@ from typing import Literal
 from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Query
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 import store
@@ -162,11 +162,12 @@ def download(job_id: str):
     folder, job = directory(job_id)
     if not job["download_available"]:
         raise HTTPException(409, "Result archive is not available")
+    count = archive_names.run_patient_count(datasets.get(job_id))
     if (folder / 'cleanup.json').is_file():
         path = run_cleanup.archive(job_id)
-        return FileResponse(path, filename=archive_names.filename(job.get('dataset_name'), archive_names.patient_count(path, result=True), job_id),
+        return FileResponse(path, filename=archive_names.filename(job.get('dataset_name'), count, job_id),
                             background=BackgroundTask(path.unlink, missing_ok=True))
-    return FileResponse(folder / "result.zip", filename=archive_names.filename(job.get('dataset_name'), archive_names.patient_count(folder / 'result.zip', result=True), job_id))
+    return FileResponse(folder / "result.zip", filename=archive_names.filename(job.get('dataset_name'), count, job_id))
 
 
 @app.get('/api/jobs/{job_id}/inputs-download')
@@ -179,6 +180,33 @@ def inputs_download(job_id: UUID):
         raise HTTPException(409, str(error))
     return FileResponse(path, filename=f'synthifhir-inputs-{job_id}.zip',
                         background=BackgroundTask(path.unlink, missing_ok=True))
+
+
+@app.get('/api/jobs/{job_id}/fhir-download')
+def fhir_download(job_id: UUID):
+    import fhir_downloads
+    try:
+        entries = fhir_downloads.plan(str(job_id))
+    except FileNotFoundError as error:
+        raise HTTPException(404, str(error))
+    except (store.SubmissionConflict, ValueError) as error:
+        raise HTTPException(409, str(error))
+    return StreamingResponse(fhir_downloads.stream(str(job_id), entries), media_type='application/zip',
+                             headers={'Content-Disposition': f'attachment; filename="FHIR-{job_id}.zip"'})
+
+
+@app.get('/api/jobs/{job_id}/source-download')
+def source_download(job_id: UUID):
+    import json
+    folder, _ = directory(str(job_id))
+    snapshot = json.loads((folder / 'snapshot.json').read_text())
+    try:
+        path = folder / inputs.input_filename(snapshot.get('inputKind', 'workbook'))
+    except ValueError:
+        raise HTTPException(404, 'Input is unavailable')
+    if not path.is_file() or path.is_symlink():
+        raise HTTPException(404, 'Input is unavailable')
+    return FileResponse(path, filename=path.name)
 
 
 # Configuration content uses the same versioned Properties contract as the editor.
@@ -365,15 +393,13 @@ def dataset_download(dataset_id: str):
         job, item, path = datasets.resolve_dataset(dataset_id)
         if not path.is_file():
             raise HTTPException(409, 'Dataset archive is not available')
-        count = item.get('inspection', {}).get('patients')
-        if count is None:
-            count = archive_names.patient_count(path)
+        count = archive_names.patient_count(item)
         if item.get('kind') == 'bulk':
             if path.name.endswith(('.ndjson.gz', '.ndjson')):
                 name = path.name
             else:
                 stem = re.sub(r'-\d+Pat$', '', path.stem)
-                name = f'{stem}-{count}Pat.zip'
+                name = archive_names.filename(stem, count, dataset_id)
         else:
             name = archive_names.filename(job.get('dataset_name'), count, dataset_id)
         return FileResponse(path, filename=name)
