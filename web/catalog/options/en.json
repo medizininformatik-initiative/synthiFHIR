@@ -262,7 +262,7 @@
   "disabled.profileConstraint": "Unavailable due to a profile constraint: {condition}.",
   "disabled.requiresSelection": "Available when {option} is selected.",
   "identifier.enabled": "Enabled",
-  "identifier.help": "Build additional identifiers from fixed text and the tokens {count}, {count:08}, {patientId}, {resourceId}, {resourceType}, {iteration} and {hash}. Counters begin at the configured start value (default: 1). Hashes contain 32 hexadecimal characters. Duplicate identifiers are checked within each conversion. Bulk runs carry counters and collision checks across subruns and series continuations. Use {{ and }} in the pattern for literal braces.",
+  "identifier.help": "Build additional identifiers from fixed text and the tokens {count}, {count:08}, {patientId}, {resourceId}, {resourceType}, {iteration} and {hash}. Counters begin at the configured start value (default: 1). Hashes contain 32 hexadecimal characters. Duplicate identifiers are checked within each conversion. Synthea generation carries counters and collision checks across patients and series continuations, including subruns in bulk mode. Use {{ and }} in the pattern for literal braces.",
   "identifier.id": "Rule ID",
   "identifier.pattern": "Value pattern",
   "identifier.resources": "Resource types",
