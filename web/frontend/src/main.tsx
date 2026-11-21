@@ -20,9 +20,9 @@ import { ConfigurationEditor } from './ConfigurationEditor'
 import { problems, type Configuration } from './configuration'
 import { exportPropertiesConfiguration, importRunProperties } from './configuration-properties'
 
-type Continuation = { sourceOffset?: number; sourceRun: string; requestedRun: string; seriesRoot: string; completedBefore: number; generation: Generation; datasetName: string; configurationProperties?: string; nextCounters: Record<string, string> }
+type Continuation = { tableFormat?: 'csv' | 'excel'; diagnostics?: boolean; sourceOffset?: number; sourceRun: string; requestedRun: string; seriesRoot: string; completedBefore: number; generation: Generation; datasetName: string; configurationProperties?: string; nextCounters: Record<string, string> }
 
-type Job = { addition?: { sourceRun: string } | null; continuation?: { sourceRun: string } | null; bulk_continuable?: boolean; output_directory?: string; bulk_output_directory?: string; bulk_progress?: BulkStatus; bulk_subruns?: BulkSubrun[]; bulk_resumable?: boolean; table_format?: 'csv' | 'excel'; outcomes?: Outcomes; workbook_count?: number; cleanup?: { completed: number; removedBytes: number; removedFiles: number }; editor_available?: boolean; summary?: DatasetContext['summary']; input_kind?: string; duration_seconds?: number | null; failure?: { kind: 'memory' | 'killed'; evidence: string }; dataset_name?: string; id: string; state: string; created: number; cancel: number; exit_code: number | null; download_available: boolean; source?: string; source_name?: string; configuration?: { id: string; name: string; revision: number | null }; batch_id?: string | null; repeated_from?: string | null; generation?: Generation; generation_result?: { generatedPatients: number; importedPatients: number; failedPatients: number } }
+type Job = { addition?: { sourceRun: string } | null; continuation?: { sourceRun: string } | null; series_continuable?: boolean; series_unavailable_reason?: 'single-person' | 'missing-state'; output_directory?: string; bulk_output_directory?: string; bulk_progress?: BulkStatus; bulk_subruns?: BulkSubrun[]; bulk_resumable?: boolean; table_format?: 'csv' | 'excel'; outcomes?: Outcomes; workbook_count?: number; cleanup?: { completed: number; removedBytes: number; removedFiles: number }; editor_available?: boolean; summary?: DatasetContext['summary']; input_kind?: string; duration_seconds?: number | null; failure?: { kind: 'memory' | 'killed'; evidence: string }; dataset_name?: string; id: string; state: string; created: number; cancel: number; exit_code: number | null; download_available: boolean; source?: string; source_name?: string; configuration?: { id: string; name: string; revision: number | null }; batch_id?: string | null; repeated_from?: string | null; generation?: Generation; generation_result?: { generatedPatients: number; importedPatients: number; failedPatients: number } }
 async function fetchResponse(path: string, init?: RequestInit): Promise<Response> {
   let response: Response
   try { response = await fetch('/api' + path, init) }
@@ -179,7 +179,8 @@ function App() {
       const displayed = config && { ...config, identifierRules: config.identifierRules.map(rule => ({ ...rule,
         ...(loaded.nextCounters[rule.id] ? { countStart: Number(loaded.nextCounters[rule.id]) } : {}) })) }
       setEditorLoad({ configuration: displayed, generation: loaded.generation, key: Date.now() })
-      setConfiguration(displayed); setGeneration(loaded.generation); setExecutionMode('bulk')
+      setConfiguration(displayed); setGeneration(loaded.generation); setExecutionMode(loaded.generation.executionMode ?? 'standard')
+      setTableFormat(loaded.tableFormat ?? 'csv'); setDiagnostics(loaded.diagnostics ?? false)
       localStorage.setItem('workbenchContinuation', loaded.sourceRun)
       setContinuation(loaded); setSeriesMode(true); setSource('synthea-generation')
       setDatasetName(loaded.datasetName); setActiveTab('generate')
@@ -300,7 +301,7 @@ function App() {
       </div>
       {source === 'synthea-generation' ? <GenerationSettings bulkGzip={bulkGzip} onBulkGzipChange={setBulkGzip} sourceOffset={continuation?.sourceOffset ?? 0} continuationLocked={!!continuation} seriesControls={<div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-sm"><span className="flex min-h-6 items-center">{t('app.series.mode')}<Help text={t('app.series.help')} t={key => t(key as TextKey)}/></span><select className="mt-1 w-full rounded-lg border p-2" disabled={busy} value={seriesMode ? 'continue' : 'new'} onChange={e => e.target.value === 'new' ? newSeries() : chooseSeries()}><option value="new">{t('app.series.new')}</option><option value="continue">{t('app.series.continue')}</option></select></label>
-        {seriesMode && <label className="text-sm"><span className="flex min-h-6 items-center">{t('app.series.previous')}</span><select className="mt-1 w-full rounded-lg border p-2" disabled={busy} value={continuation?.sourceRun ?? ''} onChange={e => { if (e.target.value) void loadContinuation(e.target.value); else setContinuation(null) }}><option value="">{t('app.series.choose')}</option>{jobs.filter(item => item.bulk_continuable).map(item => <option key={item.id} value={item.id}>{item.dataset_name || item.id.slice(0, 8)} · {item.generation?.population.toLocaleString(locale)} · {new Date(item.created * 1000).toLocaleString(locale)}</option>)}</select></label>}
+        {seriesMode && <label className="text-sm"><span className="flex min-h-6 items-center">{t('app.series.previous')}</span><select className="mt-1 w-full rounded-lg border p-2" disabled={busy} value={continuation?.sourceRun ?? ''} onChange={e => { if (e.target.value) void loadContinuation(e.target.value); else setContinuation(null) }}><option value="">{t('app.series.choose')}</option>{jobs.filter(item => item.series_continuable).map(item => <option key={item.id} value={item.id}>{item.dataset_name || item.id.slice(0, 8)} · {item.generation?.population.toLocaleString(locale)} · {new Date(item.created * 1000).toLocaleString(locale)}</option>)}</select></label>}
         {continuation && <p className="text-sm sm:col-span-2">{t('app.series.range', { previous: continuation.completedBefore.toLocaleString(locale), first: (continuation.completedBefore + 1).toLocaleString(locale), last: (continuation.completedBefore + (generation?.population ?? 0)).toLocaleString(locale) })}<Help text={t('app.series.lockedHelp')} t={key => t(key as TextKey)}/></p>}
       </div>} key={editorLoad?.key} initialValue={editorLoad?.generation} language={language} onChange={setGeneration} onExecutionModeChange={setExecutionMode}>{tableOptions}</GenerationSettings> : tableOptions}
       <p className="mt-4 text-xs text-slate-500">{t(nativeOutput ? 'app.generation.nativeHint' : bulkOutput ? 'app.bulk.overrides' : 'app.outputHint')}</p>
@@ -342,10 +343,13 @@ function App() {
             <h3 className="mt-1 break-words text-xl font-semibold">{runTitle(job)}</h3>
             <p className="mt-2 text-sm text-slate-500">{t(stateKey(job.state))} · {new Date(job.created * 1000).toLocaleString(locale)}{duration(job) ? ` · ${duration(job)}` : ''}</p>
             {(job.continuation || job.addition) && <button disabled={!jobs.some(item => item.id === (job.addition ?? job.continuation)!.sourceRun)} className="mt-2 text-sm text-teal-800 underline disabled:text-slate-400" onClick={() => select((job.addition ?? job.continuation)!.sourceRun)}>{de ? 'Ausgangslauf öffnen' : 'Open starting run'}</button>}
-            {job.bulk_continuable && <div className="mt-4">
+            {job.series_continuable && <div className="mt-4">
               <Button variant="outline" disabled={busy} onClick={() => void loadContinuation(job.id)} aria-describedby="continue-series-help">{t('app.series.continue')}</Button>
               <p id="continue-series-help" className="mt-2 text-xs text-slate-600">{de ? 'Weitere Patienten mit denselben Einstellungen erzeugen.' : 'Generate more patients with the same settings.'}</p>
             </div>}
+            {job.series_unavailable_reason && <p className="mt-3 text-xs text-slate-600">{job.series_unavailable_reason === 'single-person'
+              ? (de ? 'Dieser Lauf erzeugt eine festgelegte Einzelperson. Für weitere Patienten eine neue Serie starten.' : 'This run generates a fixed individual. Start a new series for more patients.')
+              : (de ? 'Für diesen Lauf ist kein Fortsetzungsstand gespeichert. Eingabe und Einstellungen laden, um eine neue Serie zu starten.' : 'This run has no saved continuation state. Load its inputs and settings to start a new series.')}</p>}
           </div>
           {job.bulk_progress && ['queued', 'running'].includes(job.state) && <BulkProgress progress={job.bulk_progress} subruns={job.bulk_subruns} state={job.state} language={language}/>}
           <DatasetResults key={job.id + ':' + (job.cleanup?.completed ?? '')} outputDirectory={job.output_directory} downloadAvailable={job.download_available} inputKind={job.input_kind} onUpload={openUpload} context={runContext(job)} jobId={job.id} state={job.state} language={language}/>

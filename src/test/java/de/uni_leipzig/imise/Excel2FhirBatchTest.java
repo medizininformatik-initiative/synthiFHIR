@@ -13,6 +13,10 @@ public class Excel2FhirBatchTest {
     @Rule public TemporaryFolder temporary = new TemporaryFolder();
 
     private Path execute(String name, Path input, Path config) throws Exception {
+        return execute(name, input, config, null);
+    }
+
+    private Path execute(String name, Path input, Path config, IdentifierSequence sequence) throws Exception {
         Path root = temporary.newFolder(name).toPath();
         var job = new JsonObject();
         job.add("arguments", new Gson().toJsonTree(new String[]{"-f", input.toString(), "-o", root.toString(),
@@ -20,7 +24,7 @@ public class Excel2FhirBatchTest {
         job.addProperty("log", root.resolve("conversion.log").toString());
         job.addProperty("result", root.resolve("result.json").toString());
         UcumMapper.invalidUcumCodes.add("previous-case-warning");
-        Excel2FhirBatch.execute(job);
+        Excel2FhirBatch.execute(job, sequence);
         assertTrue(UcumMapper.invalidUcumCodes.isEmpty());
         return root;
     }
@@ -56,4 +60,49 @@ public class Excel2FhirBatchTest {
             assertEquals(0, JsonParser.parseString(Files.readString(root.resolve("result.json")))
                     .getAsJsonObject().get("exitCode").getAsInt());
     }
+    private void stripGeneratedIdentifiers(JsonElement element, Set<String> values) {
+        if (element.isJsonArray()) {
+            for (var item : element.getAsJsonArray()) stripGeneratedIdentifiers(item, values);
+        } else if (element.isJsonObject()) {
+            var object = element.getAsJsonObject();
+            if (object.has("identifier") && object.get("identifier").isJsonArray()) {
+                var identifiers = object.getAsJsonArray("identifier");
+                for (int i = identifiers.size() - 1; i >= 0; i--) {
+                    var identifier = identifiers.get(i).getAsJsonObject();
+                    if (identifier.has("system") && identifier.get("system").getAsString().equals("urn:series-test")) {
+                        values.add(identifier.get("value").getAsString());
+                        identifiers.remove(i);
+                    }
+                }
+            }
+            for (var entry : object.entrySet()) stripGeneratedIdentifiers(entry.getValue(), values);
+        }
+    }
+
+    @Test public void carriesCountersAcrossPatientBatchesWithoutChangingResourcesOrReferences() throws Exception {
+        Path config = temporary.newFile("series.config").toPath();
+        Files.writeString(config, "CONFIGURATION_VERSION=1\nOUTPUT_FORMATS=JSON\n"
+                + "IDENTIFIER_RULE_1_ID=a152e771-3d5a-4cb1-9866-35fa6d91fd83\n"
+                + "IDENTIFIER_RULE_1_ENABLED=true\nIDENTIFIER_RULE_1_RESOURCES=Patient,Encounter\n"
+                + "IDENTIFIER_RULE_1_SYSTEM=urn:series-test\nIDENTIFIER_RULE_1_PATTERN={count}\n");
+        var registrations = new ArrayList<Map<String, String>>();
+        var sequence = new IdentifierSequence(Map.of(), registrations::add);
+        var first = outputs(execute("sequence-first", Path.of("FHIR_Testdatengenerator_Vorlage.xlsx"), config, sequence));
+        var restored = new IdentifierSequence(sequence.counters(), registrations::add);
+        var second = outputs(execute("sequence-second", Path.of("FHIR_Testdatengenerator_Vorlage.xlsx"), config, restored));
+        assertEquals(first.keySet(), second.keySet());
+        Set<String> firstValues = new HashSet<>(), secondValues = new HashSet<>();
+        for (var name : first.keySet()) {
+            var a = JsonParser.parseString(first.get(name));
+            var b = JsonParser.parseString(second.get(name));
+            stripGeneratedIdentifiers(a, firstValues);
+            stripGeneratedIdentifiers(b, secondValues);
+            assertEquals("Only generated identifier values may change", a, b);
+        }
+        assertFalse(firstValues.isEmpty());
+        assertFalse(secondValues.isEmpty());
+        assertTrue(Collections.disjoint(firstValues, secondValues));
+        assertFalse(registrations.isEmpty());
+    }
+
 }

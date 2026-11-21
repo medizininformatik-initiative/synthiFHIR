@@ -876,16 +876,24 @@ recreates only unfinished temporary work. Completed files and packages remain in
 place. Resume requires the generator, converter and importer versions saved with
 the job. Keep its local output files and job record until it finishes.
 
-### Continuing a bulk series
+### Continuing a Synthea series
 
 Choose **Continue series** below the execution mode, or use the same action in a
-completed run's details. Select a previous run; the form loads the last block in
+completed run's header. Select a previous run; the form loads the last block in
 its continuation chain. Set the additional patient count and start the next block.
 All other generation and converter settings are inherited and read-only. Identifier
 rules display their next counter starts.
 
-Continuation requires a successfully completed block with a saved completion state
-and, for partial source blocks, its checksummed source remainder. The generator produces complete 100-patient source blocks and retains unused patients
+Continuation is available for standard and bulk Synthea generation with a saved
+completion state. A fixed single-person seed cannot produce additional patients.
+Standard runs retain their formats, tables and diagnostic settings. Each standard
+continuation advances the population seed by one and checks generated patient IDs
+against the series history. Additional identifier counters advance across patients
+and subsequent runs; the clinician seed stays unchanged. Existing results are kept
+as generated. Runs without a saved completion state can be loaded into the editor
+to prepare a new series.
+
+Bulk generation produces complete 100-patient source blocks and retains unused patients
 internally. Continuation consumes this remainder before generating another block.
 Consent assignments are retained from the complete source block; identifier counters
 advance only during conversion of requested patients. The population seed advances

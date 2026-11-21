@@ -76,8 +76,8 @@ export function GenerationSettings({ bulkGzip, onBulkGzipChange, language, onCha
     <h3 className="font-semibold">{t('app.generation.title')}</h3>
     <p className="mt-2 text-sm text-slate-600">{t('app.generation.hint')}</p>
     <label className="mt-4 block text-sm">{t('app.bulk.mode')}<Help text={t('app.bulk.modeHelp')} t={key => t(key as TextKey)}/><select disabled={continuationLocked} className={inputClass} value={value.executionMode ?? 'standard'} onChange={e => setValue({ ...value, executionMode: e.target.value as 'standard' | 'bulk', ...(e.target.value === 'bulk' ? { overflow: false } : {}) })}><option value="standard">{t('app.bulk.standard')}</option><option value="bulk">{t('app.bulk.title')}</option></select></label>
-    {value.executionMode === 'bulk' && seriesControls}
-    {continuationLocked && <div className="mt-4 max-w-xs">{number('population', 'app.generation.population', 1, 100000)}</div>}
+    {seriesControls}
+    {continuationLocked && <div className="mt-4 max-w-xs">{number('population', 'app.generation.population', 1, value.executionMode === 'bulk' ? 100000 : 1000)}</div>}
     <fieldset disabled={continuationLocked}>
     {value.executionMode === 'bulk' ? <div className="mt-3 rounded-xl bg-teal-50 p-4 text-sm">
       <p className={`font-medium ${memory === null ? 'text-slate-600' : memory.ready ? 'text-teal-800' : 'text-red-700'}`} role="status">{t(memory === null ? 'app.bulk.memoryChecking' : memory.ready ? 'app.bulk.memoryReady' : 'app.bulk.memoryBlocked').replace('{available}', memory?.availableBytes == null ? '—' : (memory.availableBytes / 1024 ** 3).toFixed(1))}</p>
