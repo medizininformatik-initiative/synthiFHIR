@@ -72,6 +72,21 @@ class StandardSeriesTests(QueueFixture):
             self.complete(child, ['p1'], 3)
         self.assertFalse((store.ROOT / 'jobs' / child / series.STATE_FILE).exists())
 
+    def test_cleanup_preserves_standard_continuation_state(self):
+        import run_cleanup
+        job = self.create()
+        self.complete(job, ['p1', 'p2'], 2)
+        folder = store.ROOT / 'jobs' / job
+        (folder / 'datasets.json').write_text(json.dumps({'datasets': [], 'artifacts': []}))
+        before = series.preview(job)
+        run_cleanup.cleanup(job)
+        self.assertEqual(before, series.preview(job))
+        self.assertFalse((folder / 'series-registrations.jsonl').exists())
+        child = series.create(job, 1)
+        self.complete(child, ['p3'], 3)
+        self.assertEqual(3, series.preview(job)['completedBefore'])
+        self.assertEqual({'patient': '4'}, series.preview(job)['nextCounters'])
+
     def test_rejects_identifier_collision_across_runs(self):
         job = self.create()
         self.complete(job, ['p1', 'p2'], 2)
