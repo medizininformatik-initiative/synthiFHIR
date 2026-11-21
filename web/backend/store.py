@@ -176,10 +176,8 @@ def prepare_job(prepared, source, profile, configuration_properties=None, *, inp
         config = {'id': 'default' if configuration_properties is None else 'editor',
                   'name': 'Converter defaults' if configuration_properties is None else 'Submitted configuration',
                   'optionsProperties': (directory / 'default.config').read_text()}
-    counter_starts = {}
+    counter_starts = execution.get('identifierCounterStarts', {}) if not native else {}
     if bulk:
-        if not native:
-            counter_starts = execution.get('identifierCounterStarts', {})
         if execution.get('additionalRepetitions', 0):
             raise ValueError('Bulk generation requires zero additional patient copies')
         execution = {'formats': ['JSONGZIP'], 'validation': False, 'patientsPerFile': 1}
@@ -205,11 +203,15 @@ def prepare_job(prepared, source, profile, configuration_properties=None, *, inp
     snapshot['resultOutputName'] = bulk_generation.output_directory_name(
         job_id, dataset_name or 'Datensatz', time.time(),
         specification['population'] if bulk else None, continuation)
+    if specification is not None and not bulk:
+        snapshot['standardSeriesVersion'] = 1
+        snapshot['identifierCounterStarts'] = counter_starts
     if bulk:
         snapshot['bulkLayoutVersion'] = 5
         if not specification.get('singlePersonSeed'):
             snapshot['bulkSourceVersion'] = 1
         snapshot['identifierCounterStarts'] = counter_starts
+    if specification is not None:
         if continuation is not None:
             snapshot['continuation'] = continuation
             if continuation.get('remainder'):
@@ -222,6 +224,7 @@ def prepare_job(prepared, source, profile, configuration_properties=None, *, inp
             if digest(directory / 'series-identifiers.sqlite') != continuation['identifierHistorySha256']:
                 raise SubmissionConflict('Series identifier history changed')
             (directory / 'series-identifiers.sqlite').chmod(0o444)
+    if bulk:
         snapshot['bulkOutputName'] = snapshot['resultOutputName']
         import result_exports
         snapshot['bulkOutputDirectory'] = result_exports.label(snapshot)
@@ -308,9 +311,16 @@ def job_result(row):
     snapshot_path = ROOT / 'jobs' / job['id'] / 'snapshot.json'
     if snapshot_path.is_file():
         snapshot = json.loads(snapshot_path.read_text())
+        if isinstance(snapshot.get('addition'), dict) and snapshot['addition'].get('sourceRun'):
+            job['addition'] = {'sourceRun': snapshot['addition']['sourceRun']}
         import inputs, run_replay, result_exports
         job['workbook_count'] = len(run_replay.workbooks(snapshot_path.parent, snapshot))
-        job['editor_available'] = (snapshot_path.parent / inputs.input_filename(snapshot.get('inputKind', 'workbook'))).is_file()
+        try:
+            input_name = inputs.input_filename(snapshot.get('inputKind', 'workbook'))
+        except ValueError:
+            job['editor_available'] = False
+        else:
+            job['editor_available'] = (snapshot_path.parent / input_name).is_file()
         config = snapshot['profile']
         job['summary'] = run_summary.summary(snapshot_path.parent, snapshot, job['state'])
         job['outcomes'] = run_outcomes.read(snapshot_path.parent, snapshot, job['state'])
@@ -321,6 +331,16 @@ def job_result(row):
         if snapshot.get('resultOutputName'):
             import result_exports
             job['output_directory'] = result_exports.label(snapshot)
+        if snapshot.get('inputKind') == 'synthea-generation':
+            job['continuation'] = snapshot.get('continuation')
+            settings = snapshot['generation']
+            job['series_continuable'] = bool(job['state'] == 'succeeded'
+                and not settings.get('singlePersonSeed')
+                and (snapshot.get('standardSeriesVersion') or snapshot.get('bulkSourceVersion')
+                     or settings.get('executionMode') == 'bulk' and settings['population'] % 100 == 0)
+                and (snapshot_path.parent / 'bulk-completion.json').is_file())
+            if job['state'] == 'succeeded' and not job['series_continuable']:
+                job['series_unavailable_reason'] = 'single-person' if settings.get('singlePersonSeed') else 'missing-state'
         if snapshot.get('generation', {}).get('executionMode') == 'bulk':
             import bulk_generation
             job['bulk_output_directory'] = job.get('output_directory') or (bulk_generation.output_directory_label(snapshot['bulkOutputName'])

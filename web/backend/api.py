@@ -5,7 +5,7 @@ from typing import Literal
 from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Query
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 import store
@@ -180,6 +180,33 @@ def inputs_download(job_id: UUID):
         raise HTTPException(409, str(error))
     return FileResponse(path, filename=f'synthifhir-inputs-{job_id}.zip',
                         background=BackgroundTask(path.unlink, missing_ok=True))
+
+
+@app.get('/api/jobs/{job_id}/fhir-download')
+def fhir_download(job_id: UUID):
+    import fhir_downloads
+    try:
+        entries = fhir_downloads.plan(str(job_id))
+    except FileNotFoundError as error:
+        raise HTTPException(404, str(error))
+    except (store.SubmissionConflict, ValueError) as error:
+        raise HTTPException(409, str(error))
+    return StreamingResponse(fhir_downloads.stream(str(job_id), entries), media_type='application/zip',
+                             headers={'Content-Disposition': f'attachment; filename="FHIR-{job_id}.zip"'})
+
+
+@app.get('/api/jobs/{job_id}/source-download')
+def source_download(job_id: UUID):
+    import json
+    folder, _ = directory(str(job_id))
+    snapshot = json.loads((folder / 'snapshot.json').read_text())
+    try:
+        path = folder / inputs.input_filename(snapshot.get('inputKind', 'workbook'))
+    except ValueError:
+        raise HTTPException(404, 'Input is unavailable')
+    if not path.is_file() or path.is_symlink():
+        raise HTTPException(404, 'Input is unavailable')
+    return FileResponse(path, filename=path.name)
 
 
 # Configuration content uses the same versioned Properties contract as the editor.

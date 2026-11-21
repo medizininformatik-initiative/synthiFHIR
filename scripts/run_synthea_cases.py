@@ -32,6 +32,13 @@ JAR = ROOT / 'target/synthifhir.jar'
 def run_conversion_batch(jobs, validate):
     if not jobs:
         return
+    checkpoint = os.environ.get('SYNTHIFHIR_SERIES_DIRECTORY')
+    if checkpoint:
+        folder = Path(checkpoint)
+        snapshot = json.loads((folder / 'snapshot.json').read_text())
+        jobs[0].update(identifierCounters=snapshot.get('continuation', {}).get('identifierCounters', {}),
+                       identifierCountersOutput=str(folder / 'series-counters.json'),
+                       identifierRegistrationsOutput=str(folder / 'series-registrations.jsonl'))
     # Sequential workbook conversion benefits from SerialGC's smaller heap footprint.
     command = ['java', '-XX:+UseSerialGC', '-Xmx3g' if validate else '-Xmx1g', '-Duser.timezone=Europe/Berlin',
                '-Dsynthifhir.runOffset=' + run_time().strftime('%z'), '-cp', str(JAR),

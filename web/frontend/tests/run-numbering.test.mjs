@@ -40,3 +40,13 @@ test('equal timestamps are ordered consistently and an empty list is supported',
   assert.deepEqual(numberRuns(tied), numberRuns([...tied].reverse()))
   assert.equal(numberRuns([]).numbers.size, 0)
 })
+
+import { groupRuns } from '../src/run-numbering.ts'
+test('related runs remain together and new activity brings the group to the top', () => {
+  const parent = { id: 'parent', created: 1 }
+  const continuation = { id: 'child', created: 3, continuation: { sourceRun: 'parent' } }
+  const addition = { id: 'addition', created: 4, addition: { sourceRun: 'child' } }
+  const groups = groupRuns([addition, { id: 'other', created: 2 }, continuation, parent])
+  assert.deepEqual(groups.map(group => group.items.map(run => run.id)), [['parent', 'child', 'addition'], ['other']])
+  assert.deepEqual(groupRuns([continuation])[0].items, [continuation])
+})

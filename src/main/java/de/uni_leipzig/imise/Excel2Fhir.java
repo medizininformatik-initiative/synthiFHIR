@@ -45,6 +45,8 @@ public class Excel2Fhir {
     public boolean wasValidationRequested() { return validationRequested; }
     private final ValidationResultType minLogLevel;
 
+    IdentifierSequence identifierSequence;
+
     private boolean importProblems;
     private final List<File> optionFiles;
     private final Path optionsDirectory;
@@ -227,11 +229,14 @@ public class Excel2Fhir {
             Files.createDirectories(destination);
             Path snapshots = optionsDirectory == null ? resultDir.toPath().resolve("options") : optionsDirectory;
             set.snapshot(snapshots.resolve(sourceExcelFile.getName()).resolve(set.directoryName()), patientsPerBundle, validateOutput, outputFileTypes);
-            Csv2Fhir converter = new Csv2Fhir(tempDir, destination.toFile(), fileBaseName, validator, set.options(),
-                    identifiers.computeIfAbsent(set.name(), key -> new AdditionalIdentifiers(set.options().configuration())));
+            var additional = identifiers.computeIfAbsent(set.name(), key -> identifierSequence == null
+                    ? new AdditionalIdentifiers(set.options().configuration())
+                    : identifierSequence.create(set.options().configuration()));
+            Csv2Fhir converter = new Csv2Fhir(tempDir, destination.toFile(), fileBaseName, validator, set.options(), additional);
             try {
                 ConverterResultStatistics converterStatistics = converter.convertFiles(patientsPerBundle, outputFileTypes);
                 allFilesStatistics.add(converterStatistics);
+                if (identifierSequence != null) identifierSequence.completed(additional);
             } catch (Exception e) {
                 throw new IOException("FHIR conversion failed for " + sourceExcelFile, e);
             } finally {

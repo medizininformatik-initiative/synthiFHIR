@@ -18,10 +18,29 @@ import picocli.CommandLine;
 public final class Excel2FhirBatch {
     public static void main(String[] args) throws Exception {
         var jobs = JsonParser.parseReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)).getAsJsonArray();
-        for (var element : jobs) execute(element.getAsJsonObject());
+        if (jobs.isEmpty()) return;
+        var first = jobs.get(0).getAsJsonObject();
+        if (!first.has("identifierCountersOutput")) {
+            for (var element : jobs) execute(element.getAsJsonObject());
+            return;
+        }
+        var json = new com.google.gson.Gson();
+        var counters = new java.util.HashMap<String, Long>();
+        first.getAsJsonObject("identifierCounters").entrySet()
+                .forEach(entry -> counters.put(entry.getKey(), entry.getValue().getAsLong()));
+        try (var journal = Files.newBufferedWriter(Path.of(first.get("identifierRegistrationsOutput").getAsString()))) {
+            var sequence = new IdentifierSequence(counters, registration -> {
+                try { journal.write(json.toJson(registration)); journal.newLine(); }
+                catch (java.io.IOException error) { throw new java.io.UncheckedIOException(error); }
+            });
+            for (var element : jobs) execute(element.getAsJsonObject(), sequence);
+            Files.writeString(Path.of(first.get("identifierCountersOutput").getAsString()), json.toJson(sequence.counters()));
+        }
     }
 
-    static void execute(JsonObject job) throws Exception {
+    static void execute(JsonObject job) throws Exception { execute(job, null); }
+
+    static void execute(JsonObject job, IdentifierSequence sequence) throws Exception {
         PrintStream previousOut = System.out, previousErr = System.err;
         long started = System.nanoTime();
         int exitCode;
@@ -34,7 +53,9 @@ public final class Excel2FhirBatch {
             ((LoggerContext) LogManager.getContext(false)).reconfigure();
             UcumMapper.invalidUcumCodes.clear();
             String[] arguments = new com.google.gson.Gson().fromJson(job.get("arguments"), String[].class);
-            exitCode = new CommandLine(new Excel2FhirMain(job.has("csvDirectory") ? new java.io.File(job.get("csvDirectory").getAsString()) : null))
+            var converter = new Excel2FhirMain(job.has("csvDirectory") ? new java.io.File(job.get("csvDirectory").getAsString()) : null);
+            converter.identifierSequence = sequence;
+            exitCode = new CommandLine(converter)
                     .setOut(writer).setErr(writer)
                     .setExecutionExceptionHandler(new PrintExceptionMessageHandler()).execute(arguments);
         } finally {
