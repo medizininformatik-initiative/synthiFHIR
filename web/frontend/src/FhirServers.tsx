@@ -14,6 +14,8 @@ export function FhirServers({ language, targets, target, onSelect, onChange }: {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const selected = targets.find(server => server.id === target)
+  const needsStart = selected && !selected.external && selected.status?.code === 'unreachable' && ['blaze', 'hapi'].includes(selected.id)
+  const startCommand = needsStart ? `docker compose -f web/compose.yml --profile ${selected.id} up -d ${selected.id}-proxy` : ''
   const text = (a: string, b: string) => de ? a : b
   const field = (key: keyof Form, label: string, help: string, secret = false) => <label className="block space-y-1 text-sm" key={key}>
     <span className="font-medium">{label}</span><input className="block w-full rounded-lg border border-slate-300 p-2" type={secret ? 'password' : 'text'} autoComplete={secret ? 'new-password' : 'off'} value={form?.[key] ?? ''} onChange={e => setForm(previous => previous && { ...previous, [key]: e.target.value })}/>
@@ -34,9 +36,14 @@ export function FhirServers({ language, targets, target, onSelect, onChange }: {
       <Button variant="outline" disabled={busy} onClick={() => { setForm({ ...empty }); setEditing(null); setSavedSecrets(null); setError(''); setNotice('') }}>{text('Server hinzufügen', 'Add server')}</Button>
     </div>
     <p className="text-xs text-slate-600">{text('Diese Auswahl gilt für Upload und Ressourcenansicht.', 'This selection is used for uploads and the resource view.')}</p>
-    {selected && <div className="space-y-2 rounded-lg bg-slate-50 p-3 text-sm">
+    {selected && <div className={`space-y-2 rounded-lg p-3 text-sm ${needsStart ? 'border border-amber-300 bg-amber-50' : 'bg-slate-50'}`}>
       <p className="font-medium">{selected.name}</p><p className="break-all">{selected.address}</p>
-      <p role="status">{selected.status ? serverMessage(selected.status.code, language) : text('Verbindung noch nicht geprüft.', 'Connection not checked yet.')}</p>
+      {needsStart ? <div role="status" className="space-y-2 text-amber-950">
+        <p className="font-semibold">{text(`${selected.name} ist nicht erreichbar. Starte zuerst den Server, bevor du Daten hochlädst.`, `${selected.name} is unreachable. Start the server before uploading data.`)}</p>
+        <p>{text('Führe diesen Befehl im Projektverzeichnis aus:', 'Run this command from the project directory:')}</p>
+        <div className="flex flex-wrap items-center gap-2"><code className="break-all rounded border border-amber-200 bg-white p-2">{startCommand}</code><Button variant="outline" disabled={busy} onClick={() => void action(async () => { await navigator.clipboard.writeText(startCommand); setNotice(text('Startbefehl kopiert.', 'Start command copied.')) })}>{text('Startbefehl kopieren', 'Copy start command')}</Button></div>
+        <p>{text('Die Anzeige aktualisiert sich automatisch. Sobald der Server bereit ist, kannst du die ausgewählten Datensätze hochladen.', 'Status updates automatically. Once the server is ready, you can upload the selected datasets.')}</p>
+      </div> : <p role="status">{selected.status ? serverMessage(selected.status.code, language) : text('Verbindung noch nicht geprüft.', 'Connection not checked yet.')}</p>}
       {selected.auth === 'oauth2' && selected.flow === 'authorization_code' && <div className="space-y-1 text-xs text-slate-600"><p>{text('Diese Rücksprungadresse beim Anbieter eintragen:', 'Register this redirect URI with the provider:')}</p><code className="block break-all">{window.location.origin}/api/fhir-oauth/callback/{selected.id}</code><Button variant="outline" disabled={busy} onClick={() => void action(async () => { await navigator.clipboard.writeText(`${window.location.origin}/api/fhir-oauth/callback/${selected.id}`); setNotice(text('Rücksprungadresse kopiert.', 'Redirect URI copied.')) })}>{text('Adresse kopieren', 'Copy address')}</Button></div>}
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={busy} onClick={() => void check()}>{text('Verbindung prüfen', 'Check connection')}</Button>

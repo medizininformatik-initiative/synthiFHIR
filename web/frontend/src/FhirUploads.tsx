@@ -21,7 +21,6 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
   const [completedCount, setCompletedCount] = useState(0)
   const [search, setSearch] = useState('')
   const [selectedOnly, setSelectedOnly] = useState(false)
-  const [copyStatus, setCopyStatus] = useState('')
   const [datasetLimit, setDatasetLimit] = useState<number | null>(10)
   const [selection, setSelection] = useState<string[]>(() => { try { const saved: unknown = JSON.parse(sessionStorage.getItem('fhir-upload-selection') ?? '[]'); return Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [] } catch { return [] } })
   useEffect(() => { sessionStorage.setItem('fhir-upload-selection', JSON.stringify(selection)) }, [selection])
@@ -95,10 +94,6 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
     } catch { setError(true) }
     finally { setPending(false) }
   }
-  async function copyCommand(server: string) {
-    try { await navigator.clipboard.writeText(`docker compose -f web/compose.yml --profile ${server} up -d ${server}`); setCopyStatus('app.upload.copied') }
-    catch { setCopyStatus('app.upload.copyFailed') }
-  }
   const eligible = datasets.filter(dataset => dataset.state === 'succeeded' && !dataset.error && dataset.size !== undefined).sort((a, b) => b.created - a.created)
   const filtered = eligible.filter(dataset => (!selectedOnly || selection.includes(dataset.id)) &&
     [datasetLabel(dataset, language), dataset.id].join(' ').toLocaleLowerCase(language).includes(search.toLocaleLowerCase(language)))
@@ -108,14 +103,6 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
     <p className="text-sm text-slate-600">{language === 'de' ? 'Server verbinden, erzeugte Daten hochladen und Ressourcen ansehen.' : 'Connect servers, upload generated data and view resources.'}</p>
     {(error || connectionFailed) && <p role="alert" className="text-sm text-red-700">{t('app.upload.error')}</p>}
     <FhirServers language={language} targets={targets} target={target} onSelect={setTarget} onChange={async () => { const response = await fetch('/api/fhir-targets'); if (!response.ok) throw new Error('server_error'); setTargets(await response.json()) }}/>
-    {targets.some(server => server.id === target && !server.external && !server.available) && <div className="rounded-lg bg-slate-50 p-3 text-sm">
-      <p>{t('app.upload.startHint')}</p>
-      <details className="mt-2"><summary className="cursor-pointer font-medium">{t('app.upload.startServers')}</summary>
-        <p className="mt-2">{t('app.upload.commandsHint')}</p>
-        {targets.filter(server => !server.external && !server.available).map(({ id: server }) => <div key={server} className="mt-3 space-y-2"><p className="font-medium">{t('app.upload.startServer', { server: server === 'blaze' ? 'Blaze' : 'HAPI' })}</p><div className="flex flex-wrap items-center gap-2"><code className="break-all">docker compose -f web/compose.yml --profile {server} up -d {server}</code><Button type="button" variant="outline" onClick={() => void copyCommand(server)}>{t('app.upload.copy')}</Button></div></div>)}
-        <p role="status" className="mt-2">{copyStatus && t(copyStatus as TextKey)}</p>
-      </details>
-    </div>}
     <FhirResources target={targets.find(server => server.id === target)} language={language}/>
     <h3 className="font-semibold">{t('app.upload.title')}</h3>
     <p className="text-sm text-slate-600">{t('app.upload.hint')}</p>
@@ -129,6 +116,7 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
       <ListExpansion language={language} total={filtered.length} limit={datasetLimit} onChange={setDatasetLimit} countKey="app.list.datasetsCount"/>
     </fieldset>
     {target && <p className="text-sm">{language === 'de' ? 'Upload-Ziel' : 'Upload target'}: <strong>{targets.find(server => server.id === target)?.name}</strong> · <span className="break-all">{targets.find(server => server.id === target)?.address}</span></p>}
+    {targets.some(server => server.id === target && !server.external && server.status?.code === 'unreachable') && <p role="status" className="text-sm font-medium text-amber-900">{language === 'de' ? 'Upload noch nicht möglich. Starte zuerst den ausgewählten Server mit dem Befehl oben.' : 'Upload is not available yet. Start the selected server using the command above.'}</p>}
     <Button disabled={pending || !selection.length || !targets.some(server => server.id === target && server.available)} onClick={() => void submit()}>{t(pending ? 'app.upload.submitting' : 'app.upload.start', { count: selection.length })}</Button>
     {uploads.length > 0 && <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{t('app.upload.history')}</h3>{completedCount > 0 && <Button variant="outline" disabled={pending} onClick={() => void removeHistory()}>{t('app.upload.clearHistory')}</Button>}</div>{uploads.map(upload => <article key={upload.id} className="rounded-lg border p-3 text-sm">
       <p className="font-medium">{upload.descriptor.target.name} · {t(stateKeys[upload.state] || 'app.upload.failed')} · {new Date(upload.created * 1000).toLocaleString(language === 'de' ? 'de-DE' : 'en-GB')}</p>
