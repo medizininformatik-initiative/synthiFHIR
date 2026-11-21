@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import bulk_continuation as series
 import result_exports
+import run_cleanup
 import store
 import worker
 
@@ -39,6 +40,10 @@ def run():
                 assert preview['generation']['patientSeed'] == '20260913'
                 if mode == 'kds':
                     assert preview['nextCounters'] == {RULE: '3'}, preview
+                    run_cleanup.cleanup(job)
+                    assert series.preview(job) == preview
+                    assert not (first / 'series-registrations.jsonl').exists()
+                    print('kds: cleaned source retains its exact continuation checkpoint: OK', flush=True)
                 child = series.create(job, 1)
                 second = execute(child)
                 assert series.preview(job)['completedBefore'] == 3

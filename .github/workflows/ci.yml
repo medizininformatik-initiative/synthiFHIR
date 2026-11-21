@@ -132,6 +132,10 @@ jobs:
       run: docker run --rm -i --memory=4g --cpus=2 synthifhir-workbench:ci python - < web/integration/smoke_bulk_resume.py
     - name: Verify bulk series continuation
       run: docker run --rm -i --memory=4g --cpus=2 synthifhir-workbench:ci python - < web/integration/smoke_bulk_continuation.py
+    - name: Verify standard continuation after cleanup and multi-variant downloads
+      run: |
+        docker run --rm -i --memory=4g --cpus=2 synthifhir-workbench:ci python - < web/integration/smoke_standard_continuation.py
+        docker run --rm -i --memory=4g --cpus=2 synthifhir-workbench:ci python - < web/integration/smoke_multi_result_download.py
 
     - name: Generate Synthea sources and compare repeated clinical histories
       run: docker run --rm -i --memory=6g --cpus=2 synthifhir-workbench:ci python - < web/integration/smoke_synthea_generation.py

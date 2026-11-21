@@ -262,7 +262,7 @@
   "disabled.profileConstraint": "Aufgrund einer Profilbedingung nicht verfügbar: {condition}.",
   "disabled.requiresSelection": "Verfügbar, wenn {option} ausgewählt ist.",
   "identifier.enabled": "Aktiv",
-  "identifier.help": "Zusätzliche Identifier aus festem Text und den Bausteinen {count}, {count:08}, {patientId}, {resourceId}, {resourceType}, {iteration} und {hash} zusammensetzen. Zähler beginnen beim eingestellten Startwert (Standard: 1). Hashwerte bestehen aus 32 hexadezimalen Zeichen. Doppelte Identifier werden innerhalb der jeweiligen Konvertierung geprüft. Im Massenmodus werden Zähler und Kollisionsprüfung über Teilläufe und Serienfortsetzungen hinweg fortgeführt. Für einzelne geschweifte Klammern im Ergebnis {{ und }} ins Wertmuster schreiben.",
+  "identifier.help": "Zusätzliche Identifier aus festem Text und den Bausteinen {count}, {count:08}, {patientId}, {resourceId}, {resourceType}, {iteration} und {hash} zusammensetzen. Zähler beginnen beim eingestellten Startwert (Standard: 1). Hashwerte bestehen aus 32 hexadezimalen Zeichen. Doppelte Identifier werden innerhalb der jeweiligen Konvertierung geprüft. Bei Synthea-Generierungen werden Zähler und Kollisionsprüfung über Patienten und Serienfortsetzungen hinweg fortgeführt, im Massenmodus auch über Teilläufe. Für einzelne geschweifte Klammern im Ergebnis {{ und }} ins Wertmuster schreiben.",
   "identifier.id": "Regel-ID",
   "identifier.pattern": "Wertmuster",
   "identifier.resources": "Ressourcentypen",
