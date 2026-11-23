@@ -5,7 +5,7 @@ import { datasetLabel, type DatasetContext } from './dataset-label'
 import { resolveGenerationSeeds } from './generation-seeds'
 import React, { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Play, Square, Activity } from 'lucide-react'
+import { Play, Square, Activity, Trash2 } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { errorMessage, initialLanguage, InterfaceError, translate, type Language, type Message, type TextKey } from './i18n'
 import './index.css'
@@ -128,6 +128,12 @@ function App() {
   const [error, setError] = useState<Message | null>(null)
   const [connectionError, setConnectionError] = useState<Message | null>(null)
   const deleteDialog = useRef<HTMLDialogElement>(null)
+  const [managementRunId, setManagementRunId] = useState<string | null>(null)
+  const managementJob = jobs.find(j => j.id === managementRunId)
+  function openManagement(id: string) {
+    setManagementRunId(id)
+    deleteDialog.current?.showModal()
+  }
   const [busy, setBusy] = useState(false)
   const job = jobs.find(j => j.id === selected)
   useEffect(() => {
@@ -211,22 +217,22 @@ function App() {
     } catch (e) { setError(errorMessage(e)) } finally { setBusy(false) }
   }
   async function deleteRun() {
-    if (!job) return
+    if (!managementJob || ['queued', 'running'].includes(managementJob.state)) return
     deleteDialog.current?.close()
     setBusy(true); setError(null)
     try {
-      await fetchResponse(`/jobs/${job.id}`, { method: 'DELETE' })
-      setJobs(old => old.filter(item => item.id !== job.id))
-      setSelected(null); setLogs(null); localStorage.removeItem('selectedJob')
+      await fetchResponse(`/jobs/${managementJob.id}`, { method: 'DELETE' })
+      setJobs(old => old.filter(item => item.id !== managementJob.id))
+      if (selected === managementJob.id) { setSelected(null); setLogs(null); localStorage.removeItem('selectedJob') }
     } catch (e) { setError(errorMessage(e)) } finally { setBusy(false) }
   }
   async function cleanRun() {
-    if (!job) return
+    if (!managementJob || ['queued', 'running'].includes(managementJob.state)) return
     deleteDialog.current?.close()
     setBusy(true); setError(null)
     try {
-      const updated = await request<Job>(`/jobs/${job.id}/cleanup`, { method: 'POST' })
-      setJobs(old => old.map(item => item.id === updated.id ? updated : item)); setLogs(null)
+      const updated = await request<Job>(`/jobs/${managementJob.id}/cleanup`, { method: 'POST' })
+      setJobs(old => old.map(item => item.id === updated.id ? updated : item)); if (selected === managementJob.id) setLogs(null)
     } catch (e) { setError(errorMessage(e)) } finally { setBusy(false) }
   }
   function duration(job: Job) {
@@ -322,13 +328,16 @@ function App() {
         <input className="mb-3 w-full rounded-lg border border-slate-300 p-2 text-sm" aria-label={t('app.datasets.searchRuns')} placeholder={de ? 'Name, Laufart oder Status suchen' : 'Search name, run type or status'} value={runSearch} onChange={e => { setRunSearch(e.target.value); setRunLimit(10) }}/>
         {jobs.length === 0 && <p className="text-sm text-slate-500">{t('app.empty')}</p>}
         <ul className="space-y-3 md:max-h-[72vh] md:overflow-y-auto md:pr-2">{visibleGroups.map(group => <li key={group.root}><ul className="space-y-1">{group.items.map((j, index) => <li key={j.id} className={index ? 'ml-4 border-l-2 border-slate-200 pl-2' : ''}>
+          <div className="relative">
           <button aria-current={selected === j.id ? 'true' : undefined} onClick={() => select(j.id)} className={`w-full rounded-xl border p-3 text-left ${selected === j.id ? 'border-teal-700 bg-teal-50 ring-1 ring-teal-700' : 'border-slate-200 bg-white hover:border-slate-400'}`}>
             <div className="flex justify-between gap-2 text-xs"><span className="font-semibold text-slate-500">{de ? 'Lauf' : 'Run'} {runNumbers.get(j.id)}</span><span className={j.state === 'failed' ? 'font-semibold text-red-700' : j.state === 'running' ? 'font-semibold text-teal-800' : 'text-slate-500'}>{t(stateKey(j.state))}</span></div>
             <p title={runTitle(j)} className="mt-1 line-clamp-2 break-words font-semibold">{runTitle(j)}</p>
             <span className="mt-2 inline-block rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{runType(j)}</span>
             {(j.continuation || j.addition) && <p className="mt-2 text-xs text-teal-800">{j.addition ? (de ? 'Ergänzung zu Lauf' : 'Addition to run') : (de ? 'Weitere Patienten zu Lauf' : 'More patients for run')} {runNumbers.get((j.addition ?? j.continuation)!.sourceRun) ?? (j.addition ?? j.continuation)!.sourceRun.slice(0, 8)}</p>}
-            <p className="mt-2 text-xs text-slate-500">{[runCount(j), new Date(j.created * 1000).toLocaleDateString(locale)].filter(Boolean).join(' · ')}</p>
+            <p className="mt-2 min-h-6 pr-8 text-xs text-slate-500">{[runCount(j), new Date(j.created * 1000).toLocaleDateString(locale)].filter(Boolean).join(' · ')}</p>
           </button>
+          {!['queued', 'running'].includes(j.state) && <button type="button" disabled={busy} onClick={() => openManagement(j.id)} title={de ? 'Lauf bereinigen oder löschen' : 'Clean up or delete run'} aria-label={`${de ? 'Lauf' : 'Run'} ${runNumbers.get(j.id)} · ${runTitle(j)}: ${de ? 'bereinigen oder löschen' : 'clean up or delete'}`} className="absolute bottom-2 right-2 rounded p-2 text-slate-500 hover:bg-slate-200 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-teal-700 disabled:opacity-50"><Trash2 size={16}/></button>}
+          </div>
         </li>)}</ul></li>)}</ul>
         {runGroups.length === 0 && jobs.length > 0 && <p className="text-sm text-slate-500">{de ? 'Keine passenden Läufe.' : 'No matching runs.'}</p>}
         {visibleGroups.length < runGroups.length && <Button className="mt-3" variant="outline" onClick={() => setRunLimit(value => (value ?? 10) + 10)}>{de ? 'Weitere Läufe anzeigen' : 'Show more runs'}</Button>}
@@ -340,7 +349,10 @@ function App() {
         {job && <>
           <div className="mb-5 border-b border-slate-200 pb-4">
             <p className="text-xs font-medium text-teal-800">{de ? 'Lauf' : 'Run'} {runNumbers.get(job.id)} · {runType(job)}</p>
-            <h3 className="mt-1 break-words text-xl font-semibold">{runTitle(job)}</h3>
+            <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+              <h3 className="min-w-0 break-words text-xl font-semibold">{runTitle(job)}</h3>
+              {!['queued', 'running'].includes(job.state) && <Button variant="outline" disabled={busy} onClick={() => openManagement(job.id)}><Trash2 size={16}/>{t('app.deleteRun')}</Button>}
+            </div>
             <p className="mt-2 text-sm text-slate-500">{t(stateKey(job.state))} · {new Date(job.created * 1000).toLocaleString(locale)}{duration(job) ? ` · ${duration(job)}` : ''}</p>
             {(job.continuation || job.addition) && <button disabled={!jobs.some(item => item.id === (job.addition ?? job.continuation)!.sourceRun)} className="mt-2 text-sm text-teal-800 underline disabled:text-slate-400" onClick={() => select((job.addition ?? job.continuation)!.sourceRun)}>{de ? 'Ausgangslauf öffnen' : 'Open starting run'}</button>}
             {job.series_continuable && <div className="mt-4">
@@ -352,6 +364,7 @@ function App() {
               : (de ? 'Für diesen Lauf ist kein Fortsetzungsstand gespeichert. Eingabe und Einstellungen laden, um eine neue Serie zu starten.' : 'This run has no saved continuation state. Load its inputs and settings to start a new series.')}</p>}
           </div>
           {job.bulk_progress && ['queued', 'running'].includes(job.state) && <BulkProgress progress={job.bulk_progress} subruns={job.bulk_subruns} state={job.state} language={language}/>}
+          {job.outcomes && <RunOutcomes outcomes={{ ...job.outcomes, generation: job.state }} language={language}/>}
           <DatasetResults key={job.id + ':' + (job.cleanup?.completed ?? '')} outputDirectory={job.output_directory} downloadAvailable={job.download_available} inputKind={job.input_kind} onUpload={openUpload} context={runContext(job)} jobId={job.id} state={job.state} language={language}/>
           <section className="my-5 space-y-3 border-t border-slate-200 pt-4">
             <h3 className="font-semibold">{de ? 'Mit diesem Lauf weiterarbeiten' : 'Continue working with this run'}</h3>
@@ -363,16 +376,7 @@ function App() {
             </div>
             {job.bulk_resumable && <p className="text-xs text-slate-500">{t('app.bulk.resumeHelp')}</p>}
           </section>
-          <details className="mb-4 text-sm"><summary className="cursor-pointer font-medium text-slate-600">{de ? 'Einstellungen und Verwaltung' : 'Settings and management'}</summary>
-            <div className="mt-3 space-y-3">
-              <p className="break-words">{configurationName(job)}</p>
-              <p className="break-all text-xs text-slate-500">ID: {job.id}{job.exit_code !== null ? ` · ${t('app.exitCode')}: ${job.exit_code}` : ''}</p>
-              {job.bulk_progress && <BulkProgress progress={job.bulk_progress} subruns={job.bulk_subruns} state={job.state} language={language}/>}
-              {job.cleanup && <p>{t('app.cleanup.done', { size: (job.cleanup.removedBytes / 1024 / 1024).toLocaleString(locale, { maximumFractionDigits: 1 }) })}</p>}
-              {!['queued', 'running'].includes(job.state) && <Button variant="outline" tooltip={t('tooltip.deleteRun')} disabled={busy} onClick={() => deleteDialog.current?.showModal()}>{t('app.deleteRun')}</Button>}
-            </div>
-          </details>
-          {job.outcomes && <details className="mb-4 text-sm"><summary className="cursor-pointer font-medium text-slate-600">{de ? 'Prüfung und Übernahmeberichte' : 'Validation and transfer reports'}</summary><div className="mt-3"><RunOutcomes outcomes={{ ...job.outcomes, generation: job.state }} language={language}/></div></details>}
+
         </>}
         <SelectionProgress log={logText} language={language} running={job?.state === 'running'}/>
         {!job?.cleanup && <details open={!!job && ['queued', 'running'].includes(job.state)}><summary className="cursor-pointer text-sm font-medium">{t('app.logs')}</summary><pre aria-label={t('app.logs')} className="mt-3 h-96 overflow-auto rounded-xl bg-slate-950 p-4 font-mono text-xs leading-5 whitespace-pre-wrap text-slate-200">{logText}</pre></details>}
@@ -381,14 +385,14 @@ function App() {
     </div>
     <dialog ref={deleteDialog} aria-labelledby="delete-run-title" className="m-auto w-[min(36rem,calc(100%-2rem))] rounded-2xl border border-slate-200 p-6 shadow-xl backdrop:bg-slate-950/40">
       <h2 id="delete-run-title" className="mb-3 text-lg font-semibold">{t('app.cleanup.title')}</h2>
-      {job && <p className="mb-4 break-words text-sm text-slate-600">{configurationName(job)}</p>}
-      {job?.bulk_output_directory ? <p className="mb-3 text-sm">{t('app.bulk.deleteHelp')}</p> : <p className="mb-3 text-sm">{t('app.cleanup.keep')}</p>}
-      {!job?.bulk_output_directory && <p className="mb-4 text-sm text-slate-600">{t('app.cleanup.remove')}</p>}
+      {managementJob && <p className="mb-4 break-words text-sm text-slate-600">{de ? 'Lauf' : 'Run'} {runNumbers.get(managementJob.id)} · {runTitle(managementJob)}</p>}
+      {managementJob?.bulk_output_directory ? <p className="mb-3 text-sm">{t('app.bulk.deleteHelp')}</p> : <p className="mb-3 text-sm">{t('app.cleanup.keep')}</p>}
+      {!managementJob?.bulk_output_directory && <p className="mb-4 text-sm text-slate-600">{t('app.cleanup.remove')}</p>}
       <p className="mb-5 text-sm text-slate-600">{t('app.deleteRunConfirm')}</p>
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="outline" autoFocus onClick={() => deleteDialog.current?.close()}>{t('app.cleanup.cancel')}</Button>
-        <Button disabled={busy || !job || !!job.bulk_output_directory || !['succeeded', 'failed'].includes(job.state)} onClick={() => void cleanRun()}>{t('app.cleanup.action')}</Button>
-        <Button variant="outline" disabled={busy} onClick={() => void deleteRun()}>{t('app.cleanup.delete')}</Button>
+        <Button disabled={busy || !managementJob || !!managementJob.bulk_output_directory || !['succeeded', 'failed'].includes(managementJob.state)} onClick={() => void cleanRun()}>{t('app.cleanup.action')}</Button>
+        <Button variant="outline" disabled={busy || !managementJob || ['queued', 'running'].includes(managementJob.state)} onClick={() => void deleteRun()}>{t('app.cleanup.delete')}</Button>
       </div>
     </dialog>
   </main>

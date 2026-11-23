@@ -1,4 +1,4 @@
-import { translate, type Language, type TextKey } from './i18n'
+import { type Language } from './i18n'
 
 export type Outcomes = {
   generation: string
@@ -9,25 +9,17 @@ export type Outcomes = {
 }
 
 export function RunOutcomes({ outcomes, language }: { outcomes: Outcomes; language: Language }) {
-  const t = (key: TextKey, params?: Record<string, string | number>) => translate(language, key, params)
-  const label = (status: string) => t(`app.outcomes.${status}` as TextKey)
   const { transfer, validation } = outcomes
-  return <div className="mb-4 space-y-3">
-    <div className="grid gap-3 sm:grid-cols-2">
-      <div className="rounded-lg border border-slate-200 p-3"><h3 className="text-sm font-semibold">{t('app.outcomes.generation')}</h3><p className="mt-1 text-sm">{label(outcomes.generation)}</p></div>
-      <div className="rounded-lg border border-slate-200 p-3"><h3 className="text-sm font-semibold">{t('app.outcomes.validation')}</h3><p className="mt-1 text-sm">{label(validation.status)}</p>{validation.reports > 0 && <p className="mt-1 text-xs text-slate-600">{t('app.outcomes.validationCounts', validation)}</p>}</div>
-    </div>
-    {transfer.status !== 'not-applicable' && <div className="rounded-lg border border-slate-200 p-3">
-      <h3 className="text-sm font-semibold">{t('app.outcomes.transfer')}: {label(transfer.status)}</h3>
-      <p className="mt-1 text-sm">{t('app.outcomes.transferCounts', { checked: transfer.checked, differences: transfer.differences, notes: transfer.importNotes, unavailable: transfer.unavailable })}</p>
-      {(transfer.notes.length > 0 || transfer.details.length > 0 || transfer.configuredOmissions > 0) && <details className="mt-2 text-sm">
-        <summary className="cursor-pointer text-teal-800">{t('app.outcomes.details')}</summary>
-        <p className="mt-2 text-xs text-slate-600">{t('app.outcomes.explanation', { count: transfer.configuredOmissions })}</p>
-        <div className="mt-2 max-h-80 overflow-auto">
-          {transfer.notes.length > 0 && <ul className="space-y-2">{transfer.notes.map((note, index) => <li key={index} className="break-words"><span className="font-medium">{note.count} × {note.resourceType} · {note.path}</span><p>{note.reason}</p></li>)}</ul>}
-          {transfer.details.map((detail, index) => <div key={index} className="mt-3 break-words border-t border-slate-200 pt-2"><p className="font-medium">{detail.source} · {detail.variant} · {label(detail.status)}</p><p className="whitespace-pre-wrap">{detail.message}</p></div>)}
-        </div>
-      </details>}
-    </div>}
+  const de = language === 'de'
+  const notices: string[] = []
+  if (validation.findings) notices.push(de ? `${validation.findings} Prüfberichte enthalten Auffälligkeiten.` : `${validation.findings} validation reports contain findings.`)
+  if (validation.incomplete || validation.status === 'unavailable') notices.push(de ? 'Die Datenprüfung ist unvollständig.' : 'Data validation is incomplete.')
+  if (transfer.differences) notices.push(de ? 'Bei der Datenübernahme wurden Abweichungen festgestellt.' : 'Differences were found during data transfer.')
+  if (transfer.importNotes || transfer.configuredOmissions) notices.push(de ? 'Zur Datenübernahme liegen Hinweise oder vorgesehene Auslassungen vor.' : 'Data transfer has notes or configured omissions.')
+  if (transfer.unavailable || transfer.status === 'unavailable') notices.push(de ? 'Die Vollständigkeit der Datenübernahme konnte nicht vollständig geprüft werden.' : 'Transfer completeness could not be fully checked.')
+  if (!notices.length) return null
+  return <div role="status" className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+    <p>{notices.join(' ')}</p>
+    <p className="mt-1">{de ? 'Details stehen unter „Berichte und weitere Dateien“ bei den Downloads.' : 'See “Reports and other files” in the downloads for details.'}</p>
   </div>
 }
