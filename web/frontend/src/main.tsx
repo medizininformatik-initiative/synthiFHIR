@@ -1,3 +1,4 @@
+import { ResourceAdditions } from './ResourceAdditions'
 import { numberRuns, continuationReference, groupRuns } from './run-numbering'
 import { BulkProgress, type BulkStatus, type BulkSubrun } from './BulkProgress'
 import { SelectionProgress } from './SelectionProgress'
@@ -366,6 +367,10 @@ function App() {
           {job.bulk_progress && ['queued', 'running'].includes(job.state) && <BulkProgress progress={job.bulk_progress} subruns={job.bulk_subruns} state={job.state} language={language}/>}
           {job.outcomes && <RunOutcomes outcomes={{ ...job.outcomes, generation: job.state }} language={language}/>}
           <DatasetResults key={job.id + ':' + (job.cleanup?.completed ?? '')} outputDirectory={job.output_directory} downloadAvailable={job.download_available} inputKind={job.input_kind} onUpload={openUpload} context={runContext(job)} jobId={job.id} state={job.state} language={language}/>
+          {job.state === 'succeeded' && !job.addition && <ResourceAdditions key={`additions-${job.id}`} jobId={job.id} language={language} onCreate={async (settings, fingerprint) => {
+            const added = await submitRuns<Job>(`/jobs/${job.id}/additions`, { settings, fingerprint })
+            setJobs(old => [added, ...old.filter(item => item.id !== added.id)]); select(added.id)
+          }}/>}
           <section className="my-5 space-y-3 border-t border-slate-200 pt-4">
             <h3 className="font-semibold">{de ? 'Mit diesem Lauf weiterarbeiten' : 'Continue working with this run'}</h3>
             <p className="text-sm text-slate-600">{de ? 'Eingabe und Einstellungen in den Editor übernehmen, um einen weiteren Lauf vorzubereiten.' : 'Load inputs and settings into the editor to prepare another run.'}</p>
