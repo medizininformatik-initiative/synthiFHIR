@@ -78,6 +78,9 @@ def execute(job_id):
                        '-p', str(snapshot.get('patientsPerFile', 1))]
             if snapshot.get('validation', False):
                 command.append('-v')
+        elif kind == 'resource-addition':
+            from pathlib import Path
+            command = [sys.executable, str(Path(__file__).with_name('resource_additions.py')), str(folder)]
         elif kind == 'workbook-set':
             import run_replay
             run_replay.verify(folder, json.loads(input_path.read_text()))
@@ -90,8 +93,9 @@ def execute(job_id):
             command.extend(['-cp', str(store.APP / 'synthifhir.jar'), 'de.uni_leipzig.life.synthifhir.Main', '-i', str(expanded)])
         else:
             command.extend(['-jar', str(store.APP / 'synthifhir.jar'), '-f', str(input_path)])
-        command.extend(['-o', str(folder / 'output')])
-        if snapshot["profile"]["id"] not in {"synthea"}:
+        if kind != 'resource-addition':
+            command.extend(['-o', str(folder / 'output')])
+        if snapshot["profile"]["id"] not in {"synthea", "addition"}:
             if (folder / "default.config").read_text() != snapshot["profile"]["optionsProperties"]:
                 raise RuntimeError("Configuration snapshot has changed")
             command.extend(["--converter-options", str(folder / "default.config")])

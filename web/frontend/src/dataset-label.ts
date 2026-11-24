@@ -9,7 +9,7 @@ export type DatasetContext = {
 export function datasetLabel(dataset: DatasetContext & { name?: string }, language: Language): string {
   const t = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(language, key, params)
   const synthea = dataset.source === 'synthea-generation' || dataset.inputKind?.startsWith('synthea')
-  const source = synthea ? (dataset.generation?.outputMode === 'synthea' ? 'Synthea-FHIR' : 'Synthea') : dataset.inputKind === 'csv' ? 'CSV' : 'Excel'
+  const source = dataset.inputKind === 'resource-addition' ? t('app.additions.label') : synthea ? (dataset.generation?.outputMode === 'synthea' ? 'Synthea-FHIR' : 'Synthea') : dataset.inputKind === 'csv' ? 'CSV' : 'Excel'
   const name = dataset.datasetName || dataset.sourceName || (dataset.source === 'starter' ? 'FHIR_Testdatengenerator_Vorlage.xlsx'
     : dataset.source === 'demo' ? 'FHIR_Testdatengenerator_Interpolar_Demo.xlsx' : undefined)
   const facts: string[] = []

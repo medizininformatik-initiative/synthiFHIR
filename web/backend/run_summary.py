@@ -64,6 +64,8 @@ def csv_counts(filename, modified, size):
 def summary(folder, snapshot, state):
     if state not in {'succeeded', 'failed'}:
         return {}
+    if snapshot.get('addition'):
+        return {key: snapshot['addition']['counts'][key] for key in ('patients', 'cases')}
     kind = snapshot.get('inputKind', 'workbook')
     books = [folder / 'input.xlsx'] if kind == 'workbook' else sorted((folder / 'output').glob('run-*/excel/*.xlsx'))
     if kind == 'workbook-set':
