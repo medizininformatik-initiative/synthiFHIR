@@ -768,7 +768,7 @@
   "app.series.previous": "Previous run",
   "app.series.choose": "Choose a run",
   "app.series.range": "So far: {previous} patients · Next run: {first}–{last}",
-  "app.series.lockedHelp": "Only the additional patient count changes. The backend continues the population seed and counters. The clinician seed and all other settings stay the same. Identifier rules show their next starting values. Complete or resume an unfinished successor first.",
+  "app.series.lockedHelp": "Only the additional patient count changes. The backend continues the population seed and counters. The clinician seed and all other settings stay the same. Identifier rules show their next starting values. Complete or resume an unfinished successor first. The input source remains selectable. Changing it starts a new run.",
   "app.bulk.fixedFormat": "Output format: NDJSON (one transaction Bundle per line)",
   "app.bulk.gzip": "Compress with gzip",
   "app.bulk.formatPlain": "Output: One .ndjson file per subrun with the configured patient count. One complete FHIR transaction Bundle per line.",

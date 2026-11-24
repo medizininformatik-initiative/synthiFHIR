@@ -923,13 +923,17 @@ recreates only unfinished temporary work. Completed files and packages remain in
 place. Resume requires the generator, converter and importer versions saved with
 the job. Keep its local output files and job record until it finishes.
 
+Use the pencil beside a run name to rename it. The name is updated in the run
+overview; generated data and result directory names stay unchanged.
+
 ### Continuing a Synthea series
 
 Choose **Continue series** below the execution mode, or use the same action in a
 completed run's header. Select a previous run; the form loads the last block in
 its continuation chain. Set the additional patient count and start the next block.
 All other generation and converter settings are inherited and read-only. Identifier
-rules display their next counter starts.
+rules display their next counter starts. The input source remains selectable; choosing
+a different source leaves continuation mode and uses that source for a new run.
 
 Continuation is available for standard and bulk Synthea generation with a saved
 completion state. A fixed single-person seed cannot produce additional patients.

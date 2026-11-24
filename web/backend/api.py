@@ -110,6 +110,18 @@ class ContinuationRequest(BaseModel):
     population: int = Field(ge=1, le=100000, strict=True)
 
 
+class RenameRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(min_length=1, max_length=200)
+
+
+@app.patch('/api/jobs/{job_id}/name')
+def rename_job(job_id: UUID, request: RenameRequest):
+    import result_exports
+    directory(str(job_id))
+    return configuration_call(result_exports.rename, str(job_id), request.name)
+
+
 @app.get('/api/jobs/{job_id}/continuation')
 def continuation_preview(job_id: UUID):
     import bulk_continuation

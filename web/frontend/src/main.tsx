@@ -1,4 +1,5 @@
 import { ResourceAdditions } from './ResourceAdditions'
+import { RunName } from './RunName'
 import { numberRuns, continuationReference, groupRuns } from './run-numbering'
 import { BulkProgress, type BulkStatus, type BulkSubrun } from './BulkProgress'
 import { SelectionProgress } from './SelectionProgress'
@@ -113,6 +114,8 @@ function App() {
   }, [diagnostics, tableFormat])
   const [seriesMode, setSeriesMode] = useState(() => !!localStorage.getItem('workbenchContinuation'))
   const [continuation, setContinuation] = useState<Continuation | null>(null)
+  const continuationRequest = useRef(0)
+  const loadingContinuation = useRef(false)
   const [bulkGzip, setBulkGzip] = useState(true)
   const [generation, setGeneration] = useState<Generation | null>(null)
   const [executionMode, setExecutionMode] = useState<'standard' | 'bulk'>('standard')
@@ -177,11 +180,14 @@ function App() {
     if (previous && previous !== 'choose') void loadContinuation(previous)
   }, [])
   async function loadContinuation(id: string) {
+    const sequence = ++continuationRequest.current
+    loadingContinuation.current = true
     setSeriesMode(true)
     localStorage.setItem('workbenchContinuation', id)
     setBusy(true); setError(null); setContinuation(null)
     try {
       const loaded = await request<Continuation>(`/jobs/${id}/continuation`)
+      if (sequence !== continuationRequest.current) return
       const config = loaded.configurationProperties ? importRunProperties(loaded.configurationProperties) : configuration!
       const displayed = config && { ...config, identifierRules: config.identifierRules.map(rule => ({ ...rule,
         ...(loaded.nextCounters[rule.id] ? { countStart: Number(loaded.nextCounters[rule.id]) } : {}) })) }
@@ -191,9 +197,10 @@ function App() {
       localStorage.setItem('workbenchContinuation', loaded.sourceRun)
       setContinuation(loaded); setSeriesMode(true); setSource('synthea-generation')
       setDatasetName(loaded.datasetName); setActiveTab('generate')
-    } catch (e) { setError(errorMessage(e)) } finally { setBusy(false) }
+    } catch (e) { if (sequence === continuationRequest.current) setError(errorMessage(e)) }
+    finally { if (sequence === continuationRequest.current) { loadingContinuation.current = false; setBusy(false) } }
   }
-  function newSeries() { localStorage.removeItem('workbenchContinuation'); setSeriesMode(false); setContinuation(null) }
+  function newSeries() { continuationRequest.current++; localStorage.removeItem('workbenchContinuation'); setSeriesMode(false); setContinuation(null); if (loadingContinuation.current) { loadingContinuation.current = false; setBusy(false) } }
   function chooseSeries() { localStorage.setItem('workbenchContinuation', 'choose'); setSeriesMode(true) }
   async function resumeBulk() {
     if (!job) return
@@ -302,7 +309,7 @@ function App() {
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold">{t('app.create')}</h2><p className="mt-1 text-sm text-slate-500">{t('app.intro')}</p>
       <div className="mt-6 flex flex-wrap items-start gap-5">
-        <fieldset disabled={!!continuation}><InputSelection key={editorLoad?.key} language={language} source={source} onChange={value => { newSeries(); setInputKind(undefined); setSource(value) }} onBusy={setUploadingInput} onKindChange={setInputKind}/></fieldset>
+        <InputSelection key={editorLoad?.key} language={language} source={source} onChange={value => { newSeries(); setInputKind(undefined); setSource(value) }} onBusy={setUploadingInput} onKindChange={setInputKind}/>
         <label className="flex w-full sm:w-80 flex-col gap-2 text-sm font-medium">{t('app.datasetName')}<input className="rounded-lg border border-slate-300 p-2.5" disabled={!!continuation} maxLength={200} value={datasetName} onChange={e => setDatasetName(e.target.value)} placeholder={t('app.datasetNameHint')}/></label>
         <Button className="sm:mt-7" onClick={() => void start()} disabled={busy || uploadingInput || !canStart}><Play size={16}/>{t(source === 'synthea-generation' ? 'app.generation.start' : 'app.start')}</Button>
       </div>
@@ -351,7 +358,12 @@ function App() {
           <div className="mb-5 border-b border-slate-200 pb-4">
             <p className="text-xs font-medium text-teal-800">{de ? 'Lauf' : 'Run'} {runNumbers.get(job.id)} · {runType(job)}</p>
             <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
-              <h3 className="min-w-0 break-words text-xl font-semibold">{runTitle(job)}</h3>
+              <RunName key={job.id} name={runTitle(job)} de={de} onSave={async name => {
+                try {
+                  const renamed = await request<Job>(`/jobs/${job.id}/name`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+                  setJobs(old => old.map(item => item.id === renamed.id ? renamed : item))
+                } catch (error) { const message = errorMessage(error); throw new Error(t(message.key, message.params)) }
+              }}/>
               {!['queued', 'running'].includes(job.state) && <Button variant="outline" disabled={busy} onClick={() => openManagement(job.id)}><Trash2 size={16}/>{t('app.deleteRun')}</Button>}
             </div>
             <p className="mt-2 text-sm text-slate-500">{t(stateKey(job.state))} · {new Date(job.created * 1000).toLocaleString(locale)}{duration(job) ? ` · ${duration(job)}` : ''}</p>

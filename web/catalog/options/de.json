@@ -768,7 +768,7 @@
   "app.series.previous": "Vorheriger Lauf",
   "app.series.choose": "Lauf auswählen",
   "app.series.range": "Bisher: {previous} Patienten · Nächster Lauf: {first}–{last}",
-  "app.series.lockedHelp": "Nur die zusätzliche Patientenanzahl wird geändert. Der Populations-Seed und die Zähler werden im Backend fortgeführt. Der Behandler-Seed und alle übrigen Einstellungen bleiben gleich. Die Identifier-Regeln zeigen die nächsten Startwerte. Laufende oder abgebrochene Folgeblöcke zuerst abschließen oder wiederaufnehmen.",
+  "app.series.lockedHelp": "Nur die zusätzliche Patientenanzahl wird geändert. Der Populations-Seed und die Zähler werden im Backend fortgeführt. Der Behandler-Seed und alle übrigen Einstellungen bleiben gleich. Die Identifier-Regeln zeigen die nächsten Startwerte. Laufende oder abgebrochene Folgeblöcke zuerst abschließen oder wiederaufnehmen. Die Eingabequelle bleibt wählbar. Ein Wechsel startet einen neuen Lauf.",
   "app.bulk.fixedFormat": "Ausgabeformat: NDJSON (ein Transaktions-Bundle pro Zeile)",
   "app.bulk.gzip": "Mit gzip komprimieren",
   "app.bulk.formatPlain": "Ausgabe: Eine .ndjson-Datei pro Teillauf mit der eingestellten Patientenzahl. Ein vollständiges FHIR-Transaktions-Bundle pro Zeile.",
