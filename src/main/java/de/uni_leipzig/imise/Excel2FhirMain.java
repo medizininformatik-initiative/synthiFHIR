@@ -27,6 +27,7 @@ import picocli.CommandLine.Option;
 public class Excel2FhirMain implements Callable<Integer> {
 
     private final File csvInput;
+    IdentifierSequence identifierSequence;
 
     public Excel2FhirMain() { this(null); }
 
@@ -128,6 +129,7 @@ public class Excel2FhirMain implements Callable<Integer> {
                 logFileContentLayout)) {
             List<String> sheets = TableIdentifier.getExcelSheetNamePatterns();
             Excel2Fhir converter = new Excel2Fhir(validateBundles, minLogLevel, converterOptions, run.directory.resolve("details/options"));
+            converter.identifierSequence = identifierSequence;
             if (csvInput != null) {
                 converter.convertCsvDirectory(inputFile, csvInput, run.staging.toFile(),
                         patientsPerBundle, outputFileTypes);

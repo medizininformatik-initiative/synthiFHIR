@@ -284,24 +284,41 @@ source run to produce another variant with separate IDs. The addition report rec
 the settings, source run and old-to-new ID mapping. A resource type requires existing
 source resources to copy; this workflow does not generate new clinical content.
 
-## Inspect datasets and reports
+## Download run results
 
-Select a run to see **Datasets and reports**. Each embedded configuration variant
-has its own dataset archive; independent saved configurations remain separate
-runs. The overview shows unique Patient and resource counts, counts by resource
-type, repeated resource IDs and resources without IDs. Inspection streams one
-representation per output folder in this order: JSON, NDJSON, gzip JSON, bzip2
-JSON, ZIP JSON, XML. Additional formats do not increase the counts. Counts do
-not establish FHIR conformance or equality of resources sharing an ID.
+In **Runs**, the left-hand list shows each run's name, source, execution type,
+status and patient count. Follow-up runs appear beneath their starting run;
+searching keeps related runs together. Select a run to open its results.
 
-Expand the report section for import, validation and projection summaries, then
-use each report link for the complete file. Summaries cover reports up to 2 MiB;
-all reports remain accessible through the file list. Search the file list for
-workbooks, sources, options, reports or logs. File and dataset downloads stream
-from disk. Download names use saved output-patient counts without rescanning FHIR
-files. Names omit the patient count when it is unavailable or when a complete run
-contains multiple datasets whose patient IDs may overlap. The complete run ZIP
-remains available alongside the separate FHIR dataset archives. Failed runs retain available artifacts for diagnosis.
+**FHIR data** is the primary result. **Download all FHIR data** streams a ZIP
+containing the available FHIR files of the selected run. Files are collected in
+one folder per dataset or bulk package, with numeric filename prefixes to avoid
+collisions. Payload bytes and existing compression are preserved. Multiple KDS
+variants stay in separate numbered and named folders. A continuation's download contains
+that run's results; its starting run remains separately accessible.
+
+For a single result group, download and upload actions appear once at the top.
+**Individual FHIR files** lists its files directly, followed by resource statistics.
+Multiple KDS variants or bulk files retain their own actions below the run-wide
+actions. Addition runs show the generated resource types and counts instead of
+patient and case counts. **Load into FHIR servers** opens the server selection before starting
+an upload. Failed runs show an incomplete-results notice.
+
+**Input data** provides saved Excel workbooks with settings, generated CSV tables
+and uploaded source files where available. Bulk runs do not retain intermediate
+conversion tables. **Reports and other files** provides the searchable file list
+and complete run archive. Validation and transfer summaries are expandable below
+the results. **Find the local results folder** in the FHIR section provides the local output
+path, copy-path action and instructions for opening it in a file manager.
+
+Inspection streams one representation per output folder in this order: JSON,
+NDJSON, gzip JSON, bzip2 JSON, ZIP JSON, XML. Additional formats do not increase
+the counts. Counts do not establish FHIR conformance or equality of resources
+sharing an ID. The result summary counts patients, main encounters as cases (excluding
+sub-encounters), and resource occurrences. Repeated IDs count as separate
+occurrences; alternative output formats do not increase the count. Bulk packages
+are added together; KDS variants are kept separate. Unavailable counts are omitted.
+Resource statistics open with one disclosure for each dataset or package.
 
 The worker records a persistent dataset manifest and archive checksum. It indexes
 finished runs when idle and publishes each manifest atomically. The inspection
@@ -882,16 +899,24 @@ recreates only unfinished temporary work. Completed files and packages remain in
 place. Resume requires the generator, converter and importer versions saved with
 the job. Keep its local output files and job record until it finishes.
 
-### Continuing a bulk series
+### Continuing a Synthea series
 
 Choose **Continue series** below the execution mode, or use the same action in a
-completed run's details. Select a previous run; the form loads the last block in
+completed run's header. Select a previous run; the form loads the last block in
 its continuation chain. Set the additional patient count and start the next block.
 All other generation and converter settings are inherited and read-only. Identifier
 rules display their next counter starts.
 
-Continuation requires a successfully completed block with a saved completion state
-and, for partial source blocks, its checksummed source remainder. The generator produces complete 100-patient source blocks and retains unused patients
+Continuation is available for standard and bulk Synthea generation with a saved
+completion state. A fixed single-person seed cannot produce additional patients.
+Standard runs retain their formats, tables and diagnostic settings. Each standard
+continuation advances the population seed by one and checks generated patient IDs
+against the series history. Additional identifier counters advance across patients
+and subsequent runs; the clinician seed stays unchanged. Existing results are kept
+as generated. Runs without a saved completion state can be loaded into the editor
+to prepare a new series.
+
+Bulk generation produces complete 100-patient source blocks and retains unused patients
 internally. Continuation consumes this remainder before generating another block.
 Consent assignments are retained from the complete source block; identifier counters
 advance only during conversion of requested patients. The population seed advances

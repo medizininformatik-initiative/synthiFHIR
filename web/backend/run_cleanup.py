@@ -66,6 +66,7 @@ def strings(path):
 def retained(root, manifest):
     keep = {root / name for name in ('snapshot.json', 'default.config', 'datasets.json',
             'bulk-remainder.zip', 'series-remainder.zip', 'bulk-completion.json', 'bulk-identifier-history.sqlite', 'series-identifiers.sqlite',
+            'series-patients.json',
             'input.xlsx', 'input.zip', 'addition.ndjson', 'generation.json', 'generation-result.json', 'timing.json', 'failure.json', 'outcomes.json')
             if (root / name).is_file()}
     snapshot = json.loads((root / 'snapshot.json').read_text())

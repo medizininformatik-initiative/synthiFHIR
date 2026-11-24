@@ -1,6 +1,7 @@
 """Create independent FHIR additions from the immutable results of a completed run."""
 import copy
 from decimal import Decimal
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -163,6 +164,19 @@ def source_index(job_id):
                 _, item, archive_path = datasets.resolve_dataset(item['id'], already_locked=True)
                 if store.digest(archive_path) != item['sha256']:
                     raise ValueError('Source result checksum changed')
+                if item.get('kind') == 'bulk':
+                    import bulk_ndjson, bulk_archives
+                    if archive_path.name.endswith(bulk_ndjson.SUFFIXES):
+                        with bulk_ndjson.open_stream(archive_path) as stream:
+                            index_export(db, stream)
+                    else:
+                        manifest = bulk_archives.read_manifest(archive_path)
+                        with zipfile.ZipFile(archive_path) as archive:
+                            for name in sorted(manifest['files']):
+                                with archive.open(name) as compressed, gzip.GzipFile(fileobj=compressed) as stream:
+                                    resource = json.load(stream, parse_float=Decimal)
+                                    index_export(db, [encode(resource)])
+                    continue
                 expanded = temp / str(index)
                 expanded.mkdir()
                 with zipfile.ZipFile(archive_path) as archive:

@@ -24,9 +24,9 @@ export function ResourceStatistics({ datasetId, statistics, language }: {
     .replaceAll('Department contact', 'Abteilungskontakt').replaceAll('Care unit contact', 'Versorgungsstellenkontakt')
     .replaceAll('not specified', 'Nicht angegeben') : value
   return <section className="mt-3 space-y-2">
-    <Button variant="outline" asChild><a href={`/api/datasets/${datasetId}/statistics`}><Download size={14}/>{de ? 'Statistik herunterladen' : 'Download statistics'}</a></Button>
     <details className="text-sm">
       <summary className="cursor-pointer font-medium">{de ? 'Ressourcenstatistik' : 'Resource statistics'}</summary>
+      <Button className="mt-3" variant="outline" asChild><a href={`/api/datasets/${datasetId}/statistics`}><Download size={14}/>{de ? 'Statistik herunterladen' : 'Download statistics'}</a></Button>
       <p className="mt-2 text-xs text-slate-500">{de
         ? 'Die Zahlen gelten für diesen Datensatz oder dieses Paket. Dieselbe Ressource kann mit derselben ID mehrfach vorkommen. Eingebettete Ressourcen werden nicht einzeln gezählt; verschiedene Ausgabeformate zählen nicht mehrfach.'
         : 'Counts apply to this dataset or package. The same resource may occur repeatedly with the same ID. Contained resources are not counted separately; different output formats are not counted multiple times.'}</p>

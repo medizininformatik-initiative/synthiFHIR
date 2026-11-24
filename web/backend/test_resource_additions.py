@@ -134,3 +134,31 @@ class AdditionTests(QueueFixture):
         with store.run_lock(identifier), patch.object(store, 'run_lock', side_effect=AssertionError('Nested lock')):
             _, item, archive = datasets.resolve_dataset(identifier + '.0', already_locked=True)
         self.assertEqual(item['sha256'], store.digest(archive))
+
+
+class BulkAdditionTests(QueueFixture):
+    def test_published_bulk_formats_preserve_existing_references(self):
+        from test_bulk_uploads import StreamingTests
+        import bulk_generation
+        with patch.object(bulk_generation, 'OUTPUT_ROOT', self.root / 'bulk'):
+            for layout, compressed in ((3, True), (5, True), (5, False)):
+                with self.subTest(layout=layout, compressed=compressed):
+                    resources = [
+                        {'resourceType': 'Patient', 'id': 'p'},
+                        {'resourceType': 'Encounter', 'id': 'e', 'subject': {'reference': 'Patient/p'}},
+                        {'resourceType': 'DocumentReference', 'id': 'd', 'status': 'current',
+                         'subject': {'reference': 'Patient/p'}, 'context': {'encounter': [{'reference': 'Encounter/e'}]},
+                         'content': [{'attachment': {'contentType': 'text/plain', 'data': 'VGVzdA=='}}]}]
+                    dataset = StreamingTests.publish(self, resources, layout, compressed)
+                    source = dataset.split('.')[0]
+                    catalogue = additions.catalogue(source)
+                    choice = next(item for item in catalogue['types'] if item['resourceType'] == 'DocumentReference')
+                    self.assertEqual({'resources': 1, 'patients': 1, 'cases': 1, 'skipped': 0}, choice['encounter'])
+                    identifier = additions.create(source, additions.Settings(resourceType='DocumentReference'), catalogue['fingerprint'], str(uuid4()))
+                    folder = store.ROOT / 'jobs' / identifier
+                    additions.execute(folder)
+                    output = [json.loads(line) for line in (folder / 'output/run-additions/fhir/resources.ndjson').read_text().splitlines()]
+                    self.assertEqual(1, len(output))
+                    self.assertEqual('Patient/p', output[0]['subject']['reference'])
+                    self.assertEqual('Encounter/e', output[0]['context']['encounter'][0]['reference'])
+                    self.assertNotEqual('d', output[0]['id'])

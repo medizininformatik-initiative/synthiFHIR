@@ -40,7 +40,7 @@ export function OutputDirectory({ path, language }: { path: string; language: La
         className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-teal-100 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700">
         {status === 'copied' ? <Check className="h-4 w-4 text-teal-700" aria-hidden="true"/> : <Copy className="h-4 w-4" aria-hidden="true"/>}
       </button>
-      <span className="inline-flex shrink-0"><Help text={hint} t={() => de ? 'Ordner im Dateimanager öffnen' : 'Open folder in file manager'}/></span>
+      <span className="inline-flex shrink-0"><Help text={hint} t={() => de ? 'Anleitung: Ordner im Dateimanager öffnen' : 'How to open the folder in a file manager'}/></span>
     </div>
     {status === 'manual' && <p role="status" className="text-xs text-slate-600">{de ? 'Bitte den markierten Pfad mit Strg+C bzw. ⌘C kopieren.' : 'Copy the selected path with Ctrl+C or ⌘C.'}</p>}
   </div>
