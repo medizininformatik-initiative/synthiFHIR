@@ -875,6 +875,5 @@
   "app.additions.skipped": "{count} Ausgangsressourcen haben keinen passenden Patienten- oder Fallbezug und werden ausgelassen.",
   "app.additions.summary": "{count} neue {type} für {patients} vorhandene Patienten und {cases} vorhandene Kontakte.",
   "app.additions.references": "Patienten und Kontakte werden nur referenziert. Neue Ressourcen erhalten automatisch neue IDs.",
-  "app.additions.copyHelp": "Weitere Inhalte und Identifier werden aus den Vorlagen übernommen. Referenzen zwischen den kopierten Ressourcen zeigen auf die neuen Kopien; andere Referenzen bleiben bei ihren bisherigen Zielen. Ausgabe: JSON und NDJSON.",
-  "app.additions.source": "Ergänzung zu Lauf"
+  "app.additions.copyHelp": "Weitere Inhalte und Identifier werden aus den Vorlagen übernommen. Referenzen zwischen den kopierten Ressourcen zeigen auf die neuen Kopien; andere Referenzen bleiben bei ihren bisherigen Zielen. Ausgabe: JSON und NDJSON."
 }

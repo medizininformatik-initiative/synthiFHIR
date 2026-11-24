@@ -875,6 +875,5 @@
   "app.additions.skipped": "{count} source resources have no matching patient or encounter reference and will be skipped.",
   "app.additions.summary": "{count} new {type} resources for {patients} existing patients and {cases} existing encounters.",
   "app.additions.references": "Patients and encounters are referenced only. New resources receive new IDs automatically.",
-  "app.additions.copyHelp": "Other content and identifiers are copied from the sources. References between copied resources point to the new copies; other references retain their existing targets. Output: JSON and NDJSON.",
-  "app.additions.source": "Addition to run"
+  "app.additions.copyHelp": "Other content and identifiers are copied from the sources. References between copied resources point to the new copies; other references retain their existing targets. Output: JSON and NDJSON."
 }
