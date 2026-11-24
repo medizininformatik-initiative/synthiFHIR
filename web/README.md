@@ -263,26 +263,25 @@ attached to their original runs.
 
 ## Add resources to an existing run
 
-In **Runs**, select a successful run and choose **Add resources**. The panel lists
-supported resource types present in its FHIR results. Choose patient or encounter
-references and edit the settings for the additional resources. DocumentReference
-supports the same type coding presets, free coding rows and NLP settings as the
-configuration editor.
+In **Runs**, select a run with FHIR results and choose **Add resources**. Select
+one resource type and patient or encounter references. The resource type does not
+need to exist in the source results.
 
-Each matching source resource produces one copy with a new FHIR ID. Patient mode
-keeps its patient reference and removes its encounter reference. Encounter mode
-keeps both references and requires an encounter belonging to the same patient.
-The preview shows resource, patient and encounter counts and reports skipped
-resources without the required references. Other properties, including document
-content and identifiers, are copied. References between copied resources of the
-selected type point to their new IDs; other references keep their existing targets.
+The generator creates one new resource per existing patient or encounter. Encounter
+mode includes sub-encounters and uses each encounter's patient reference. The preview
+shows the number of new resources and any contacts without a resolvable patient.
 
-Starting the addition creates a separate run with JSON and NDJSON results containing
-only the new resources. Load these results into the same FHIR server as the source
-run. Patients and encounters remain in the source run. Repeat the action on the
-source run to produce another variant with separate IDs. The addition report records
-the settings, source run and old-to-new ID mapping. A resource type requires existing
-source resources to copy; this workflow does not generate new clinical content.
+Set the status, description, timestamp and applicable codes or result text in the
+panel. DocumentReference creates new embedded text documents and supports document
+type coding presets and NLP settings, initially populated from the current editor.
+Leave the document content empty to generate synthetic text identifying its patient,
+contact and timestamp. An empty timestamp uses the complete encounter start, or the
+addition creation time when no complete start is available.
+
+Starting creates a separate related run with new FHIR IDs, JSON/NDJSON downloads
+and a generation report. Existing patients, contacts and results remain unchanged.
+Upload the new resources to the same FHIR server as their source patients and contacts.
+The generated content is synthetic test data determined by the settings in the panel.
 
 ## Download run results
 

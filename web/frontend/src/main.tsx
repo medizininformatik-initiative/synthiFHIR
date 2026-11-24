@@ -367,7 +367,7 @@ function App() {
           {job.bulk_progress && ['queued', 'running'].includes(job.state) && <BulkProgress progress={job.bulk_progress} subruns={job.bulk_subruns} state={job.state} language={language}/>}
           {job.outcomes && <RunOutcomes outcomes={{ ...job.outcomes, generation: job.state }} language={language}/>}
           <DatasetResults key={job.id + ':' + (job.cleanup?.completed ?? '')} outputDirectory={job.output_directory} downloadAvailable={job.download_available} inputKind={job.input_kind} onUpload={openUpload} context={runContext(job)} jobId={job.id} state={job.state} language={language}/>
-          {job.state === 'succeeded' && !job.addition && <ResourceAdditions key={`additions-${job.id}`} jobId={job.id} language={language} onCreate={async (settings, fingerprint) => {
+          {['succeeded', 'failed'].includes(job.state) && !job.addition && <ResourceAdditions initialConfiguration={configuration} key={`additions-${job.id}`} jobId={job.id} language={language} onCreate={async (settings, fingerprint) => {
             const added = await submitRuns<Job>(`/jobs/${job.id}/additions`, { settings, fingerprint })
             setJobs(old => [added, ...old.filter(item => item.id !== added.id)]); select(added.id)
           }}/>}
