@@ -364,14 +364,17 @@ function App() {
                   setJobs(old => old.map(item => item.id === renamed.id ? renamed : item))
                 } catch (error) { const message = errorMessage(error); throw new Error(t(message.key, message.params)) }
               }}/>
-              {!['queued', 'running'].includes(job.state) && <Button variant="outline" disabled={busy} onClick={() => openManagement(job.id)}><Trash2 size={16}/>{t('app.deleteRun')}</Button>}
+              {!['queued', 'running'].includes(job.state) && <Button variant="outline" tooltip={de ? 'Temporäre Dateien bereinigen oder diesen Lauf löschen.' : 'Clean up temporary files or delete this run.'} disabled={busy} onClick={() => openManagement(job.id)}><Trash2 size={16}/>{t('app.deleteRun')}</Button>}
             </div>
             <p className="mt-2 text-sm text-slate-500">{t(stateKey(job.state))} · {new Date(job.created * 1000).toLocaleString(locale)}{duration(job) ? ` · ${duration(job)}` : ''}</p>
             {(job.continuation || job.addition) && <button disabled={!jobs.some(item => item.id === (job.addition ?? job.continuation)!.sourceRun)} className="mt-2 text-sm text-teal-800 underline disabled:text-slate-400" onClick={() => select((job.addition ?? job.continuation)!.sourceRun)}>{de ? 'Ausgangslauf öffnen' : 'Open starting run'}</button>}
-            {job.series_continuable && <div className="mt-4">
-              <Button variant="outline" disabled={busy} onClick={() => void loadContinuation(job.id)} aria-describedby="continue-series-help">{t('app.series.continue')}</Button>
-              <p id="continue-series-help" className="mt-2 text-xs text-slate-600">{de ? 'Weitere Patienten mit denselben Einstellungen erzeugen.' : 'Generate more patients with the same settings.'}</p>
-            </div>}
+            <div className="mt-4 flex flex-wrap items-start gap-3">
+              {job.series_continuable && <Button variant="outline" tooltip={de ? 'Weitere Patienten mit denselben Einstellungen erzeugen.' : 'Generate more patients with the same settings.'} disabled={busy} onClick={() => void loadContinuation(job.id)}>{t('app.series.continue')}</Button>}
+              {['succeeded', 'failed'].includes(job.state) && !job.addition && <ResourceAdditions initialConfiguration={configuration} key={`additions-${job.id}`} jobId={job.id} language={language} onCreate={async (settings, fingerprint) => {
+                const added = await submitRuns<Job>(`/jobs/${job.id}/additions`, { settings, fingerprint })
+                setJobs(old => [added, ...old.filter(item => item.id !== added.id)]); select(added.id)
+              }}/>}
+            </div>
             {job.series_unavailable_reason && <p className="mt-3 text-xs text-slate-600">{job.series_unavailable_reason === 'single-person'
               ? (de ? 'Dieser Lauf erzeugt eine festgelegte Einzelperson. Für weitere Patienten eine neue Serie starten.' : 'This run generates a fixed individual. Start a new series for more patients.')
               : (de ? 'Für diesen Lauf ist kein Fortsetzungsstand gespeichert. Eingabe und Einstellungen laden, um eine neue Serie zu starten.' : 'This run has no saved continuation state. Load its inputs and settings to start a new series.')}</p>}
@@ -379,19 +382,15 @@ function App() {
           {job.bulk_progress && ['queued', 'running'].includes(job.state) && <BulkProgress progress={job.bulk_progress} subruns={job.bulk_subruns} state={job.state} language={language}/>}
           {job.outcomes && <RunOutcomes outcomes={{ ...job.outcomes, generation: job.state }} language={language}/>}
           <DatasetResults key={job.id + ':' + (job.cleanup?.completed ?? '')} outputDirectory={job.output_directory} downloadAvailable={job.download_available} inputKind={job.input_kind} onUpload={openUpload} context={runContext(job)} jobId={job.id} state={job.state} language={language}/>
-          {['succeeded', 'failed'].includes(job.state) && !job.addition && <ResourceAdditions initialConfiguration={configuration} key={`additions-${job.id}`} jobId={job.id} language={language} onCreate={async (settings, fingerprint) => {
-            const added = await submitRuns<Job>(`/jobs/${job.id}/additions`, { settings, fingerprint })
-            setJobs(old => [added, ...old.filter(item => item.id !== added.id)]); select(added.id)
-          }}/>}
+
           <section className="my-5 space-y-3 border-t border-slate-200 pt-4">
             <h3 className="font-semibold">{de ? 'Mit diesem Lauf weiterarbeiten' : 'Continue working with this run'}</h3>
             <p className="text-sm text-slate-600">{de ? 'Eingabe und Einstellungen in den Editor übernehmen, um einen weiteren Lauf vorzubereiten.' : 'Load inputs and settings into the editor to prepare another run.'}</p>
             <div className="flex flex-wrap gap-2">
               {!['queued', 'running'].includes(job.state) && <Button variant="outline" tooltip={t('tooltip.loadRun')} disabled={busy || job.editor_available === false} onClick={() => void loadRun()}>{t('app.loadRun')}</Button>}
               {['succeeded', 'failed'].includes(job.state) && !!job.workbook_count && <Button variant="outline" tooltip={t('tooltip.replay')} disabled={busy} onClick={() => void loadRun(true)}>{t('app.replay.action')}</Button>}
-              {job.bulk_resumable && <Button variant="outline" disabled={busy} onClick={() => void resumeBulk()}>{t('app.bulk.resume')}</Button>}
+              {job.bulk_resumable && <Button variant="outline" tooltip={t('app.bulk.resumeHelp')} disabled={busy} onClick={() => void resumeBulk()}>{t('app.bulk.resume')}</Button>}
             </div>
-            {job.bulk_resumable && <p className="text-xs text-slate-500">{t('app.bulk.resumeHelp')}</p>}
           </section>
 
         </>}

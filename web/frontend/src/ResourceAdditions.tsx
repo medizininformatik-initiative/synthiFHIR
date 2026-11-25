@@ -64,11 +64,11 @@ export function ResourceAdditions({ jobId, language, onCreate, initialConfigurat
     } catch (error) { setError(error instanceof InterfaceError ? t(error.messageKey, error.params) : error instanceof Error ? error.message : t('app.additions.failed')) }
     finally { setBusy(false) }
   }
-  return <section className="my-5 border-t border-slate-200 pt-4">
+  return <div className="contents">
     <Button variant="outline" tooltip={t('app.additions.actionHelp')} onClick={() => open ? setOpen(false) : void load()} aria-expanded={open}>
       {t('app.additions.action')}
     </Button>
-    {open && <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+    {open && <div className="w-full basis-full rounded-xl border border-slate-200 bg-slate-50 p-4">
       <h3 className="font-semibold">{t('app.additions.action')}</h3>
       <p className="mt-2 text-sm text-slate-600">{t('app.additions.intro')}</p>
       {busy && <p role="status" className="mt-3 text-sm">{t('app.additions.working')}</p>}
@@ -104,15 +104,15 @@ export function ResourceAdditions({ jobId, language, onCreate, initialConfigurat
             <Button type="button" variant="outline" tooltip={t('document.add')} aria-label={t('document.add')} onClick={() => { setCodings(old => [...old, {system:'',code:'',display:''}]); setPreview(false) }}>+</Button>
           </>}
         </section>}
-        <Button type="button" variant="outline" disabled={!counts?.resources} onClick={() => setPreview(true)}>{t('app.additions.preview')}</Button>
+        <Button type="button" variant="outline" tooltip={t('app.additions.references')} disabled={!counts?.resources} onClick={() => setPreview(true)}>{t('app.additions.preview')}</Button>
         {counts?.skipped ? <p className="text-sm text-amber-800">{t('app.additions.skipped', { count: counts.skipped })}</p> : null}
         {preview && counts && <div className="rounded-lg border border-teal-200 bg-teal-50 p-4">
           <p className="font-medium">{t('app.additions.summary', { count: counts.resources, type: kind, patients: counts.patients, cases: counts.cases })}</p>
           <p className="mt-2 text-sm">{t('app.additions.references')}</p>
           <p className="mt-2 text-sm">{t('app.additions.generationHelp')}</p>
-          <Button className="mt-3" onClick={() => void start()}>{t('app.additions.start')}</Button>
+          <Button className="mt-3" tooltip={t('app.additions.generationHelp')} onClick={() => void start()}>{t('app.additions.start')}</Button>
         </div>}
       </fieldset>}
     </div>}
-  </section>
+  </div>
 }
