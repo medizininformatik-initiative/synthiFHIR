@@ -5,6 +5,24 @@ GUI code, catalogues, tests and documentation live under `web/`. Shared converte
 behavior remains in the Java converter. Existing issue references describe the
 planned work streams; this checklist does not change their status.
 
+## High priority: MII profile-oriented resource selection and properties
+
+- [ ] Redesign resource selection in **Generate & convert** around MII profiles,
+  with a higher-level profile/module view in addition to the resource-type view.
+  A resource type such as Observation can occur in several profiles with different
+  bindings and content requirements; make these distinctions visible and selectable.
+- [ ] Offer additional properties for every supported resource type, following
+  the DocumentReference controls as a starting point. Include profile-specific
+  terminology bindings, coded values and other fields that determine the actual
+  resource content, including relevant nested properties. Apply the same concept
+  to generating data and adding resources to existing patients and contacts.
+- [ ] Review mappings against the selected profiles. Investigate smoking status
+  as a concrete example: identify the applicable German/MII profiles and their
+  bindings before deciding how source values should be mapped.
+- [ ] Agree on a simple profile hierarchy and property editor before implementing
+  this redesign. Keep the initial view compact and expose detailed properties when
+  needed. These items are recorded for planning; no implementation is agreed yet.
+
 ## Profile-neutral and international FHIR output
 
 - [ ] Extend the generator to support profile-neutral FHIR R4 test data and
