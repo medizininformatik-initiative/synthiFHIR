@@ -9,8 +9,12 @@ planned work streams; this checklist does not change their status.
 
 - [ ] Redesign resource selection in **Generate & convert** around MII profiles,
   with a higher-level profile/module view in addition to the resource-type view.
-  A resource type such as Observation can occur in several profiles with different
-  bindings and content requirements; make these distinctions visible and selectable.
+  Cover all profiles with additional or differing bindings, field constraints and
+  content variants. The same resource type can occur in several profiles or modules
+  (for example laboratory and microbiology) with different meanings and settings;
+  make these distinctions visible and selectable per profile. Observation is only
+  an illustrative example, not the scope of this work. Identify the concrete shared
+  resource types and differences when inventorying the profiles.
 - [ ] Offer additional properties for every supported resource type, following
   the DocumentReference controls as a starting point. Include profile-specific
   terminology bindings, coded values and other fields that determine the actual
