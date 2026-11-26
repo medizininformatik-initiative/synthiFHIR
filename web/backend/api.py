@@ -1,11 +1,12 @@
 import re
+import logging
 import archive_names
 from uuid import UUID
 from typing import Literal
 from urllib.parse import quote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, Query
-from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse, RedirectResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 import store
@@ -14,12 +15,27 @@ import inputs
 import datasets
 import service_status
 import fhir_uploads
+import fhir_servers
 import generation
 import run_cleanup
 import run_inputs
 from starlette.background import BackgroundTask
 from generation import Settings as GenerationSettings
 from starlette.concurrency import run_in_threadpool
+
+class OAuthAccessLogFilter(logging.Filter):
+    def filter(self, record):
+        # Uvicorn's access record: client, method, path+query, HTTP version, status.
+        # Keep request diagnostics while omitting one-time authorization codes.
+        if isinstance(record.args, tuple) and len(record.args) == 5:
+            client, method, path, version, status = record.args
+            if isinstance(path, str) and path.startswith('/api/fhir-oauth/'):
+                record.args = (client, method, path.split('?', 1)[0], version, status)
+        return True
+
+
+logging.getLogger('uvicorn.access').addFilter(OAuthAccessLogFilter())
+
 
 app = FastAPI(title="synthiFHIR Workbench")
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
@@ -31,7 +47,10 @@ async def local_mutations(request: Request, call_next):
     if request.method not in {"GET", "HEAD", "OPTIONS"} and origin:
         if urlsplit(origin).netloc != request.headers.get("host"):
             return PlainTextResponse("Cross-origin changes are not allowed", status_code=403)
-    return await call_next(request)
+    response = await call_next(request)
+    if request.url.path.startswith('/api/fhir'):
+        response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 
@@ -89,6 +108,18 @@ class ContinuationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     requestId: UUID | None = None
     population: int = Field(ge=1, le=100000, strict=True)
+
+
+class RenameRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(min_length=1, max_length=200)
+
+
+@app.patch('/api/jobs/{job_id}/name')
+def rename_job(job_id: UUID, request: RenameRequest):
+    import result_exports
+    directory(str(job_id))
+    return configuration_call(result_exports.rename, str(job_id), request.name)
 
 
 @app.get('/api/jobs/{job_id}/continuation')
@@ -427,6 +458,85 @@ def fhir_targets():
     return fhir_uploads.targets()
 
 
+class ServerRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    name: str = Field(max_length=120)
+    address: str = Field(max_length=2048)
+    auth: Literal['none', 'basic', 'bearer', 'oauth2']
+    username: str = ''
+    password: str = ''
+    token: str = ''
+    flow: str = 'client_credentials'
+    issuer: str = ''
+    tokenUrl: str = ''
+    authorizationUrl: str = ''
+    clientId: str = ''
+    clientSecret: str = ''
+    scope: str = ''
+
+
+@app.post('/api/fhir-targets', status_code=201)
+def create_fhir_target(body: ServerRequest):
+    return configuration_call(fhir_servers.save, body.model_dump())
+
+
+@app.put('/api/fhir-targets/{identifier}')
+def update_fhir_target(identifier: UUID, body: ServerRequest):
+    return configuration_call(fhir_servers.save, body.model_dump(), str(identifier))
+
+
+@app.delete('/api/fhir-targets/{identifier}', status_code=204)
+def delete_fhir_target(identifier: UUID):
+    configuration_call(fhir_servers.delete, str(identifier))
+
+
+@app.post('/api/fhir-targets/{identifier}/check')
+def check_fhir_target(identifier: str):
+    return configuration_call(fhir_servers.check, identifier)
+
+
+class DiscoveryRequest(BaseModel):
+    issuer: str = Field(max_length=2048)
+
+
+@app.post('/api/fhir-discovery')
+def discover_fhir_provider(body: DiscoveryRequest):
+    return configuration_call(fhir_servers.discover, body.issuer)
+
+
+@app.post('/api/fhir-targets/{identifier}/login')
+def login_fhir_target(identifier: UUID, request: Request):
+    redirect = str(request.base_url).rstrip('/') + '/api/fhir-oauth/callback/' + str(identifier)
+    url, binding = configuration_call(fhir_servers.begin_login, str(identifier), redirect)
+    from fastapi.responses import JSONResponse
+    response = JSONResponse({'url': url})
+    response.set_cookie('fhir_oauth', binding, max_age=600, httponly=True, samesite='lax', secure=request.url.scheme == 'https', path='/api/fhir-oauth')
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@app.get('/api/fhir-oauth/callback/{identifier}')
+def fhir_oauth_callback(identifier: UUID, request: Request, state: str = '', code: str = '', iss: str | None = None):
+    try:
+        fhir_servers.complete_login(state, code, request.cookies.get('fhir_oauth'), iss, str(identifier))
+        result = 'success'
+    except ValueError as error:
+        result = str(error)
+    response = RedirectResponse('/?fhirLogin=' + quote(result, safe=''), status_code=303)
+    response.delete_cookie('fhir_oauth', path='/api/fhir-oauth')
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    return response
+
+
+@app.get('/api/fhir-targets/{identifier}/resources')
+def fhir_resources(identifier: str, path: str = Query(default='Patient', max_length=100), query: str = Query(default='_count=20', max_length=8192)):
+    result = configuration_call(fhir_servers.request, identifier, path, query)
+    # Raw upstream links are never followed with credentials. The browser submits only a relative query.
+    from fastapi.responses import JSONResponse
+    return JSONResponse(result, headers={'Cache-Control': 'no-store'})
+
+
 @app.get('/api/fhir-uploads')
 def fhir_upload_history(limit: int = Query(default=5, ge=1, le=10000)):
     return fhir_uploads.history_page(limit)
@@ -461,3 +571,27 @@ def cancel_fhir_upload(upload_id: UUID):
 @app.get('/api/fhir-uploads/{upload_id}/logs', response_class=PlainTextResponse)
 def fhir_upload_logs(upload_id: UUID):
     return configuration_call(fhir_uploads.logs, str(upload_id))
+
+
+from resource_additions import Settings as AdditionSettings
+
+
+class AdditionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    requestId: UUID
+    fingerprint: str = Field(pattern=r'^[0-9a-f]{64}$')
+    settings: AdditionSettings
+
+
+@app.get('/api/jobs/{job_id}/additions')
+def addition_catalogue(job_id: UUID):
+    import resource_additions
+    return configuration_call(resource_additions.catalogue, str(job_id))
+
+
+@app.post('/api/jobs/{job_id}/additions', status_code=201)
+def add_resources(job_id: UUID, request: AdditionRequest):
+    import resource_additions
+    result = configuration_call(resource_additions.create, str(job_id), request.settings,
+                                request.fingerprint, str(request.requestId))
+    return store.get(result)

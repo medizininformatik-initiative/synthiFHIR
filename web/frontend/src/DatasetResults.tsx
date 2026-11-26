@@ -90,8 +90,8 @@ export function DatasetResults({ jobId, state, language, context, onUpload, inpu
       {(state === 'failed' || datasets.some(item => item.error)) && <p role="alert" className="mt-3 text-sm text-amber-900">{de ? 'Die Ergebnisse können unvollständig sein. Prüfe die verfügbaren Dateien vor der Verwendung.' : 'Results may be incomplete. Check the available files before using them.'}</p>}
       {ready.length > 0 && <>
         <div className="mt-4 flex flex-wrap gap-4">
-          <div><Button asChild><a href={`/api/jobs/${jobId}/fhir-download`}><Download size={16}/>{de ? 'Alle FHIR-Daten herunterladen' : 'Download all FHIR data'}</a></Button><p className="mt-2 text-xs text-slate-600">{de ? 'Alle FHIR-Dateien dieses Laufs als ZIP.' : 'All FHIR files from this run as a ZIP.'}</p></div>
-          {state === 'succeeded' && <div><Button variant="outline" onClick={() => onUpload(ready.map(item => item.id))}><Upload size={16}/>{t('app.upload.open')}</Button><p className="mt-2 text-xs text-slate-600">{de ? 'Zuerst den Zielserver auswählen.' : 'Choose the target server first.'}</p></div>}
+          <div><Button tooltip={de ? 'Alle FHIR-Dateien dieses Laufs als ZIP.' : 'All FHIR files from this run as a ZIP.'} asChild><a href={`/api/jobs/${jobId}/fhir-download`}><Download size={16}/>{de ? 'Alle FHIR-Daten herunterladen' : 'Download all FHIR data'}</a></Button></div>
+          {state === 'succeeded' && <div><Button variant="outline" tooltip={de ? 'Zielserver auswählen und die FHIR-Daten dieses Laufs hochladen.' : 'Choose a target server and upload this run’s FHIR data.'} onClick={() => onUpload(ready.map(item => item.id))}><Upload size={16}/>{t('app.upload.open')}</Button></div>}
         </div>
       </>}
       {single && <section className="mt-4 border-t border-teal-200 pt-3 text-sm">
@@ -128,9 +128,9 @@ export function DatasetResults({ jobId, state, language, context, onUpload, inpu
           : sourceDownload ? (de ? 'Die ursprüngliche Eingabe dieses Laufs herunterladen.' : 'Download the original input for this run.')
           : (de ? 'Für diesen Lauf sind derzeit keine Eingabedateien zum Download verfügbar.' : 'No input files are currently available for this run.')}</p>
       {ended && <div className="mt-3 flex flex-wrap gap-2">
-        {excel && <Button variant="outline" asChild><a href={`/api/jobs/${jobId}/inputs-download`}><Download size={14}/>{de ? 'Excel und Einstellungen (ZIP)' : 'Excel and settings (ZIP)'}</a></Button>}
-        {csv.map((file, index) => <Button key={file.id} variant="outline" asChild><a href={`/api/jobs/${jobId}/artifacts/${file.id}`}><Download size={14}/>{de ? 'CSV-Tabellen (ZIP)' : 'CSV tables (ZIP)'}{csv.length > 1 ? ` · ${index + 1}` : ''}</a></Button>)}
-        {sourceDownload && <Button variant="outline" asChild><a href={`/api/jobs/${jobId}/source-download`}><Download size={14}/>{inputKind === 'csv' ? (de ? 'CSV-Eingabe (ZIP)' : 'CSV input (ZIP)') : (de ? 'Synthea-Eingabe' : 'Synthea input')}</a></Button>}
+        {excel && <Button variant="outline" tooltip={de ? 'Excel-Eingaben und Einstellungen dieses Laufs herunterladen.' : 'Download this run’s Excel inputs and settings.'} asChild><a href={`/api/jobs/${jobId}/inputs-download`}><Download size={14}/>{de ? 'Excel und Einstellungen (ZIP)' : 'Excel and settings (ZIP)'}</a></Button>}
+        {csv.map((file, index) => <Button key={file.id} variant="outline" tooltip={de ? 'Die erzeugten CSV-Eingabetabellen herunterladen.' : 'Download the generated CSV input tables.'} asChild><a href={`/api/jobs/${jobId}/artifacts/${file.id}`}><Download size={14}/>{de ? 'CSV-Tabellen (ZIP)' : 'CSV tables (ZIP)'}{csv.length > 1 ? ` · ${index + 1}` : ''}</a></Button>)}
+        {sourceDownload && <Button variant="outline" tooltip={de ? 'Die ursprünglichen Eingabedaten dieses Laufs herunterladen.' : 'Download the original input data for this run.'} asChild> <a href={`/api/jobs/${jobId}/source-download`}><Download size={14}/>{inputKind === 'csv' ? (de ? 'CSV-Eingabe (ZIP)' : 'CSV input (ZIP)') : (de ? 'Synthea-Eingabe' : 'Synthea input')}</a></Button>}
       </div>}
 
     </section>

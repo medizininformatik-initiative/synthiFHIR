@@ -122,6 +122,8 @@ jobs:
           exit 1'
         python3 web/integration/smoke_hapi_resource_view.py
         docker run --rm --memory=1g --network synthifhir-workbench_default -v "$PWD/web/integration/smoke_fhir_upload.py:/probe.py:ro" synthifhir-workbench:ci python /probe.py hapi
+    - name: Verify external FHIR authentication and resumable uploads
+      run: docker run --rm -i --memory=2g synthifhir-workbench:ci python - < web/integration/smoke_external_fhir.py
     - name: Verify bulk output equivalence and synthetic enrichment
       run: |
         docker run --rm -i --memory=4g --cpus=2 synthifhir-workbench:ci python - < web/integration/smoke_bulk_generation.py

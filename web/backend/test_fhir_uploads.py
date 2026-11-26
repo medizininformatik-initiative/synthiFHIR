@@ -137,7 +137,7 @@ File: /data/transactions/0000.ndjson [Bundle: 9]
         self.assertEqual(9, len(client.get('/api/fhir-uploads?limit=10').json()['items']))
         self.assertEqual(422, client.get('/api/fhir-uploads?limit=0').status_code)
         self.assertEqual(409, client.delete('/api/fhir-uploads/' + identifiers[0]).status_code)
-        with patch.object(uploads.urllib.request, 'urlopen') as network:
+        with patch.object(uploads.fhir_servers, 'http_json') as network:
             self.assertEqual(204, client.delete('/api/fhir-uploads/' + identifiers[1]).status_code)
             self.assertFalse(uploads.folder(identifiers[1]).exists())
             self.assertEqual(404, client.delete('/api/fhir-uploads/' + identifiers[1]).status_code)

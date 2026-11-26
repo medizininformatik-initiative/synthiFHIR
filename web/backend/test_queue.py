@@ -27,6 +27,25 @@ class QueueFixture(unittest.TestCase):
 
 
 class QueueTests(QueueFixture):
+    def test_rename_standard_run_preserves_existing_presentation_metadata(self):
+        import json
+        from fastapi.testclient import TestClient
+        from api import app
+        job = store.create('starter', 'default')
+        folder = store.ROOT / 'jobs' / job
+        original = (folder / 'snapshot.json').read_bytes()
+        snapshot = json.loads(original)
+        metadata = result_exports.metadata_path(snapshot)
+        metadata.parent.mkdir(parents=True)
+        metadata.write_text(json.dumps({'resultOutputName': 'existing-location', 'seriesNumber': 2}))
+        for state in ('queued', 'running', 'failed', 'succeeded'):
+            store.finish(job, state, 0)
+            response = TestClient(app).patch(f'/api/jobs/{job}/name', json={'name': 'Corrected ' + state})
+            self.assertEqual(200, response.status_code, response.text)
+            self.assertEqual('Corrected ' + state, store.jobs()[0]['dataset_name'])
+        self.assertEqual(original, (folder / 'snapshot.json').read_bytes())
+        self.assertEqual({'resultOutputName': 'existing-location', 'seriesNumber': 2, 'datasetName': 'Corrected succeeded'}, json.loads(metadata.read_text()))
+
     def test_unknown_input_kind_preserves_run_listing(self):
         import json
         job = store.create('starter', 'default')

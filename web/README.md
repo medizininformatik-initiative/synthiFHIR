@@ -261,6 +261,28 @@ Loading starts no job. Edit the settings as needed and use the normal start butt
 A new run uses the installed converter and generator; existing results remain
 attached to their original runs.
 
+## Add resources to an existing run
+
+In **Runs**, select a run with FHIR results and choose **Add resources**. Select
+one resource type and patient or encounter references. The resource type does not
+need to exist in the source results.
+
+The generator creates one new resource per existing patient or encounter. Encounter
+mode includes sub-encounters and uses each encounter's patient reference. The preview
+shows the number of new resources and any contacts without a resolvable patient.
+
+Set the status, description, timestamp and applicable codes or result text in the
+panel. DocumentReference creates new embedded text documents and supports document
+type coding presets and NLP settings, initially populated from the current editor.
+Leave the document content empty to generate synthetic text identifying its patient,
+contact and timestamp. An empty timestamp uses the complete encounter start, or the
+addition creation time when no complete start is available.
+
+Starting creates a separate related run with new FHIR IDs, JSON/NDJSON downloads
+and a generation report. Existing patients, contacts and results remain unchanged.
+Upload the new resources to the same FHIR server as their source patients and contacts.
+The generated content is synthetic test data determined by the settings in the panel.
+
 ## Download run results
 
 In **Runs**, the left-hand list shows each run's name, source, execution type,
@@ -311,10 +333,34 @@ The name is display metadata and does not change generated FHIR content or resou
 
 ## Load datasets into a FHIR server
 
-In **Load datasets into FHIR servers**, select an available Blaze or HAPI target
-and one or more datasets from successful runs. The displayed address identifies
-the target. Start **Load datasets** to queue the action; generation jobs and
-uploads share the worker and run one at a time.
+In **FHIR servers and data**, choose a local or saved external server. The same
+selection applies to uploads and **View resources on the server**.
+
+Use **Add server** to enter a name, the FHIR R4 base address and authentication:
+
+- **No authentication:** no credentials.
+- **Username and password (Basic Auth):** the server credentials.
+- **Bearer token:** paste the token without the `Bearer` prefix.
+- **OAuth2:** choose application access (Client Credentials) or browser sign-in
+  (Authorization Code with PKCE). Enter the client details and token endpoint;
+  browser sign-in also needs an authorization endpoint. A provider address can
+  discover the endpoints. After saving a browser connection,
+  copy its displayed redirect URI and register it with the provider, then sign in.
+
+Use **Check connection** to check access and supported FHIR features without
+writing data. Write permission is checked during upload. External connections
+with credentials require HTTPS; local loopback addresses also allow HTTP.
+Addresses must be reachable from the Workbench backend. Credentials stay in
+protected backend storage and are omitted from exports and upload logs. OAuth2
+tokens are renewed automatically when the provider supports it.
+
+Select one or more datasets from successful runs and check the displayed target
+name and address. Start **Load datasets** to queue the action; generation jobs
+and uploads share the worker and run one at a time.
+
+Use **View resources on the server** to read a resource type or an individual
+resource, for example `Patient` or `Patient/123`. **Narrow the search** accepts
+FHIR search parameters. The view reads data without changing it.
 
 The worker checks the entire selection before transferring any data. Different
 contents under the same resource type and ID within that selection stop the
@@ -326,8 +372,9 @@ Each action retains the selected dataset checksums, run snapshots, target,
 preparation result and upload log. Status distinguishes waiting, checking,
 uploading, success, conflicts, failure and interruption. **Cancel** stops further
 work. An interrupted or failed transfer can leave already uploaded transactions
-on the server; it is not rolled back. Select the datasets again to explicitly
-start another action. Reloading the browser does not cancel an upload.
+on the server; it is not rolled back. Use **Resume** when offered to continue
+from confirmed transactions, or select the datasets again to start another
+action. Reloading the browser does not cancel an upload.
 
 Dataset labels combine the chosen name (or workbook filename), source and saved
 run facts, for example `Demo · Synthea (Pat 10 · Cases 42 · Hist 0 · Age 18–85)`.
@@ -876,13 +923,17 @@ recreates only unfinished temporary work. Completed files and packages remain in
 place. Resume requires the generator, converter and importer versions saved with
 the job. Keep its local output files and job record until it finishes.
 
+Use the pencil beside a run name to rename it. The name is updated in the run
+overview; generated data and result directory names stay unchanged.
+
 ### Continuing a Synthea series
 
 Choose **Continue series** below the execution mode, or use the same action in a
 completed run's header. Select a previous run; the form loads the last block in
 its continuation chain. Set the additional patient count and start the next block.
 All other generation and converter settings are inherited and read-only. Identifier
-rules display their next counter starts.
+rules display their next counter starts. The input source remains selectable; choosing
+a different source leaves continuation mode and uses that source for a new run.
 
 Continuation is available for standard and bulk Synthea generation with a saved
 completion state. A fixed single-person seed cannot produce additional patients.

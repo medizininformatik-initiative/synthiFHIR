@@ -1,5 +1,6 @@
 """Persistent dataset manifests and streaming downloads of completed run artifacts."""
 from collections import Counter
+from contextlib import nullcontext
 import hashlib
 import json
 from pathlib import Path
@@ -172,7 +173,7 @@ def get(job_id):
     return manifest
 
 
-def resolve_dataset(identifier):
+def resolve_dataset(identifier, *, already_locked=False):
     if not re.fullmatch(r'[0-9a-f-]{36}\.\d+', identifier):
         raise FileNotFoundError('Dataset not found')
     job_id, index = identifier.split('.')
@@ -193,7 +194,7 @@ def resolve_dataset(identifier):
         return job, item, target
     target = folder / ('dataset-' + index + '.zip')
     if not target.is_file() and (folder / 'cleanup.json').is_file():
-        with store.run_lock(job_id):
+        with nullcontext() if already_locked else store.run_lock(job_id):
             if not target.is_file():
                 temporary = target.with_suffix('.tmp')
                 try:

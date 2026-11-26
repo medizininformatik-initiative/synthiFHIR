@@ -70,6 +70,24 @@ class ContinuationTests(QueueFixture):
         store.cancel(child); store.delete(child)
         with self.assertRaises(store.SubmissionConflict): series.create(self.job, 100)
 
+    def test_display_rename_preserves_evidence_and_continuation(self):
+        import result_exports
+        folder = store.ROOT / 'jobs' / self.job
+        original = (folder / 'snapshot.json').read_bytes()
+        snapshot = json.loads(original)
+        location = result_exports.path(snapshot)
+        response = self.client.patch(f'/api/jobs/{self.job}/name', json={'name': '  Patienten für Müller  '})
+        self.assertEqual(200, response.status_code, response.text)
+        self.assertEqual('Patienten für Müller', response.json()['dataset_name'])
+        self.assertEqual(original, (folder / 'snapshot.json').read_bytes())
+        self.assertEqual(location, result_exports.path(snapshot))
+        self.assertEqual('Patienten für Müller', series.preview(self.job)['datasetName'])
+        child = series.create(self.job, 100)
+        self.assertEqual('Patienten für Müller', store.get(child)['dataset_name'])
+        self.assertEqual(422, self.client.patch(f'/api/jobs/{self.job}/name', json={'name': '   '}).status_code)
+        self.assertEqual(422, self.client.patch(f'/api/jobs/{self.job}/name', json={'name': 'x' * 201}).status_code)
+        self.assertEqual(404, self.client.patch(f'/api/jobs/{uuid4()}/name', json={'name': 'Missing'}).status_code)
+
     def test_rejects_missing_changed_counters_versions_and_incomplete_predecessors(self):
         folder = store.ROOT / 'jobs' / self.job
         state = folder / series.STATE_FILE

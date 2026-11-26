@@ -100,13 +100,17 @@ def transaction(obj, dataset, db=None):
     return output
 
 
-def send(url, bundle):
+def send(url, bundle, target=None):
     from fhir_uploads import encode
     request = urllib.request.Request(url, data=encode(bundle).encode(), method='POST',
                                      headers={'Content-Type': 'application/fhir+json', 'Accept': 'application/fhir+json'})
     try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            result = json.load(response)
+        if target and target.get('external'):
+            import fhir_servers
+            result = fhir_servers.request(target['id'], body=encode(bundle).encode(), expected=target)
+        else:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                result = json.load(response)
     except urllib.error.HTTPError as error:
         detail = error.read(16384).decode(errors='replace')
         raise RuntimeError(f'FHIR server HTTP {error.code}: {detail}') from error
@@ -114,7 +118,7 @@ def send(url, bundle):
     if (result.get('resourceType') != 'Bundle' or result.get('type') != 'transaction-response'
             or len(entries) != len(bundle['entry'])
             or any(not re.match(r'^2\d\d(?:\s|$)', entry.get('response', {}).get('status', '')) for entry in entries)):
-        raise RuntimeError('FHIR server did not confirm every resource in the transaction: ' + json.dumps(result)[:16384])
+        raise RuntimeError('FHIR server did not confirm every resource in the transaction' + ('' if target else ': ' + json.dumps(result)[:16384]))
 
 
 def execute(identifier, descriptor, root, summary, run, log, cancelled):
@@ -154,8 +158,9 @@ def execute(identifier, descriptor, root, summary, run, log, cancelled):
         raise ValueError('Invalid patient count or upload checkpoint')
     if cancelled():
         raise InterruptedError()
-    if not target_status(descriptor['target']['id'])['available']:
-        raise ValueError('Target FHIR R4 transaction server is unavailable')
+    status = target_status(descriptor['target']['id'])
+    if not status['available']:
+        raise ValueError(status.get('status', {}).get('code', 'Target FHIR R4 transaction server is unavailable'))
     update('uploading', True)
     current = 0
     for package_index, item in enumerate(descriptor['datasets']):
@@ -168,7 +173,7 @@ def execute(identifier, descriptor, root, summary, run, log, cancelled):
                 raise InterruptedError()
             summary['mayHaveWritten'] = True
             update('uploading', not accepted)
-            send(descriptor['target']['url'], transaction(obj, item['id']))
+            send(descriptor['target']['url'], transaction(obj, item['id']), **({'target': descriptor['target']} if descriptor['target'].get('external') else {}))
             # A crash before this write retries a PUT with the same resource IDs and content.
             accepted = current
             atomic_json(checkpoint, {'signature': signature, 'accepted': accepted})

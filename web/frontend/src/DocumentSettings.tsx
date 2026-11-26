@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Plus, Minus } from 'lucide-react'
 import { Help } from './Help'
 import { Button } from './components/ui/button'
@@ -6,10 +6,12 @@ import { options, resourceEnabled, type Configuration, type Value, type Document
 import { typePresets, nlpPresets, nlpCodes, nlpExtension, nlpSystem, statusHints } from './document-settings'
 
 const inputClass = 'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100'
-export function DocumentSettings({ config, update, t }: {
+export function DocumentSettings({ config, update, t, generation = false }: {
+  generation?: boolean
   config: Configuration; update: (id: string, value: Value) => void
   t: (key: string, params?: Record<string, string | number>) => string
 }) {
+  const instance = useId()
   const [typePreset, setTypePreset] = useState('combined')
   const [nlpPreset, setNlpPreset] = useState('original')
   const enabled = resourceEnabled('DocumentReference', config.values)
@@ -17,7 +19,7 @@ export function DocumentSettings({ config, update, t }: {
     {(['type', 'nlp'] as const).map(group => {
       const prefix = `document.${group}`
       const mode = String(config.values[`${prefix}.mode`])
-      const inactive = !enabled || ['input', 'omit'].includes(mode)
+      const inactive = !enabled || (!generation && ['input', 'omit'].includes(mode))
       const rows = config.values[`${prefix}.values`] as DocumentCoding[] | string[]
       const preset = group === 'type' ? typePreset : nlpPreset
       const modeOption = options.find(o => o.id === `${prefix}.mode`)!
@@ -26,15 +28,15 @@ export function DocumentSettings({ config, update, t }: {
           : (rows as DocumentCoding[]).map((row, i) => i === index ? { ...row, [field]: value } : row))
       return <section key={group} aria-label={t(`option.${prefix}.values.label`)} className="rounded-lg border border-slate-200 p-4">
         <div className="mb-2 flex flex-wrap items-center gap-2"><h4 className="font-semibold">{t(`option.${prefix}.values.label`)}</h4><span className="min-w-0 break-all rounded border border-slate-200 bg-slate-100 px-2 py-1 text-xs font-normal text-slate-600">{t('app.config.fhirResource', { resource: group === 'type' ? 'DocumentReference.type.coding' : 'DocumentReference.extension.valueCodeableConcept.coding' })}</span><Help text={t(`option.${prefix}.values.help`)} t={t} /></div>
-        <div className="flex items-center gap-2"><label className="text-sm" htmlFor={`${prefix}.mode`}>{t(modeOption.labelKey)}</label><Help text={t(modeOption.helpKey)} t={t} /></div>
-        <select id={`${prefix}.mode`} className={`${inputClass} mt-1`} disabled={!enabled} value={mode}
+        {!generation && <><div className="flex items-center gap-2"><label className="text-sm" htmlFor={`${instance}-${prefix}.mode`}>{t(modeOption.labelKey)}</label><Help text={t(modeOption.helpKey)} t={t} /></div>
+        <select id={`${instance}-${prefix}.mode`} className={`${inputClass} mt-1`} disabled={!enabled} value={mode}
           onChange={event => update(`${prefix}.mode`, event.target.value)}>
           {modeOption.choices!.map(choice => <option key={String(choice)} value={choice}>{t(modeOption.choiceLabelKeys![String(choice)])}</option>)}
-        </select>
+        </select></>}
         <fieldset disabled={inactive} className="mt-3 space-y-3 disabled:opacity-60">
-          <legend className="flex items-center gap-2 text-sm"><label htmlFor={`${prefix}.preset`}>{t('document.preset')}</label><Help text={t('document.presetHelp')} t={t} /></legend>
+          <legend className="flex items-center gap-2 text-sm"><label htmlFor={`${instance}-${prefix}.preset`}>{t('document.preset')}</label><Help text={t('document.presetHelp')} t={t} /></legend>
           <div className="flex flex-wrap gap-2">
-            <select id={`${prefix}.preset`} className={`${inputClass} flex-1`} value={preset}
+            <select id={`${instance}-${prefix}.preset`} className={`${inputClass} flex-1`} value={preset}
               onChange={event => group === 'type' ? setTypePreset(event.target.value) : setNlpPreset(event.target.value)}>
               {(group === 'type' ? ['combined', 'kdl', 'xds', 'empty'] : Object.keys(nlpPresets)).map(key =>
                 <option key={key} value={key}>{t(`document.preset.${key}`)}</option>)}
@@ -46,8 +48,8 @@ export function DocumentSettings({ config, update, t }: {
             {(group === 'type' ? ['system', 'code', 'display'] : ['code']).map(field => <label key={field} className={field === 'system' ? 'min-w-48 flex-[2] text-xs' : 'min-w-32 flex-1 text-xs'}>
               {t(`document.${field}`)} {index + 1}
               <input className={`${inputClass} mt-1`} value={typeof row === 'string' ? row : row[field as keyof DocumentCoding] ?? ''}
-                list={`${prefix}.${field}.${index}`} onChange={event => changeRow(index, field, event.target.value)} />
-              <datalist id={`${prefix}.${field}.${index}`}>
+                list={`${instance}-${prefix}.${field}.${index}`} onChange={event => changeRow(index, field, event.target.value)} />
+              <datalist id={`${instance}-${prefix}.${field}.${index}`}>
                 {(group === 'nlp' ? nlpCodes : typePresets.combined.filter(c => field === 'system' || c.system === (row as DocumentCoding).system).map(c => c[field as keyof DocumentCoding]!)).map(value => <option key={value} value={value} />)}
               </datalist>
             </label>)}
