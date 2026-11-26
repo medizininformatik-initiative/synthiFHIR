@@ -19,11 +19,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 
 import datasets
+import addition_generation
 from fhir_uploads import encode
 import store
 
-# Patient path, encounter path, CodeableConcept path. Existing dependency targets
-# remain references unless they are themselves among the selected copies.
+# Patient path, encounter path, CodeableConcept path.
 TYPES = {
     'DocumentReference': ('subject', 'context.encounter', 'type'),
     'Condition': ('subject', 'encounter', 'code'),
@@ -57,16 +57,24 @@ class Settings(BaseModel):
     codings: list[Coding] = Field(default_factory=list, max_length=100)
     nlpMode: Literal['input', 'fill', 'replace', 'omit'] = 'input'
     nlpCodes: list[str] = Field(default_factory=list, max_length=100)
+    text: str = Field(default='', max_length=2000)
+    documentText: str = Field(default='', max_length=100000)
+    value: str = Field(default='', max_length=2000)
+    timestamp: str = Field(default='', max_length=40)
 
 
-def validate(settings):
+def validate(settings, *, generated=False):
     if settings.resourceType not in TYPES:
         raise ValueError('Unsupported resource type')
     _, encounter, code = TYPES[settings.resourceType]
-    if settings.resourceType == 'Condition' and settings.status:
+    if not generated and settings.resourceType == 'Condition' and settings.status:
         raise ValueError('Condition uses clinicalStatus, not status')
     if settings.association == 'encounter' and not encounter:
         raise ValueError('This resource type supports patient references only')
+    if generated:
+        addition_generation.validate(settings)
+        if settings.resourceType.startswith('Medication'):
+            code = 'medicationCodeableConcept'
     if not code and (settings.codingMode != 'input' or settings.codings):
         raise ValueError('This resource type has no editable code here')
     if settings.resourceType != 'DocumentReference' and (settings.nlpMode != 'input' or settings.nlpCodes):
@@ -106,8 +114,11 @@ def index_export(db, stream):
         entries = obj.get('entry', []) if obj.get('resourceType') == 'Bundle' else [{'resource': obj}]
         for entry in entries:
             resource = entry.get('resource')
-            if not resource:
+            if not resource or resource.get('resourceType') not in {'Patient', 'Encounter'}:
                 continue
+            resource = {field: resource[field] for field in ('resourceType', 'id', 'subject', 'period') if field in resource}
+            if resource['resourceType'] == 'Patient':
+                resource = {field: resource[field] for field in ('resourceType', 'id')}
             identity = key(resource)
             content = encode(resource)
             old = db.execute('SELECT content FROM resources WHERE key=?', (identity,)).fetchone()
@@ -141,12 +152,12 @@ def normalize(db, resource):
 def source_index(job_id):
     """Called under the source run lock. Cache is keyed by published result hashes."""
     job = store.get(job_id)
-    if not job or job['state'] != 'succeeded':
+    if not job or job['state'] not in {'succeeded', 'failed'}:
         raise ValueError('Choose a completed run')
     items = datasets.get(job_id).get('datasets', [])
     if not items or any(item.get('error') for item in items):
         raise ValueError('This run has no complete FHIR results')
-    fingerprint = hashlib.sha256(json.dumps([(i['id'], i.get('sha256')) for i in items], sort_keys=True).encode()).hexdigest()
+    fingerprint = hashlib.sha256(('generation-targets-v1:' + json.dumps([(i['id'], i.get('sha256')) for i in items], sort_keys=True)).encode()).hexdigest()
     folder = store.ROOT / 'jobs' / job_id
     target = folder / 'addition-source.sqlite'
     if target.exists():
@@ -194,58 +205,56 @@ def source_index(job_id):
                     index_export(db, stream)
                 shutil.rmtree(expanded)
             items = datasets.get(job_id).get('datasets', [])
-            fingerprint = hashlib.sha256(json.dumps([(i['id'], i.get('sha256')) for i in items], sort_keys=True).encode()).hexdigest()
+            fingerprint = hashlib.sha256(('generation-targets-v1:' + json.dumps([(i['id'], i.get('sha256')) for i in items], sort_keys=True)).encode()).hexdigest()
             db.execute('UPDATE metadata SET fingerprint=?', (fingerprint,))
             db.execute('CREATE INDEX resource_kind ON resources(kind)')
         (temp / 'index.sqlite').replace(target)
     return target, fingerprint
 
 
-def selection(db, settings):
-    patient_path, encounter_path, _ = TYPES[settings.resourceType]
-    for identity, content in db.execute('SELECT key,content FROM resources WHERE kind=? ORDER BY key', (settings.resourceType,)):
-        resource = normalize(db, json.loads(content, parse_float=Decimal))
-        patient = value_at(resource, patient_path).get('reference')
-        encounters = [r['reference'] for r in references(value_at(resource, encounter_path))]
-        valid_patient = patient and patient.startswith('Patient/') and resolve(db, patient)
-        valid_encounters = encounters and all(e.startswith('Encounter/') and resolve(db, e) for e in encounters)
-        if valid_encounters and valid_patient:
-            # Never associate a resource with another patient's encounter.
-            for encounter in encounters:
-                source = json.loads(db.execute('SELECT content FROM resources WHERE key=?', (encounter,)).fetchone()[0])
-                if resolve(db, source.get('subject', {}).get('reference', '')) != patient:
-                    valid_encounters = False
-        yield identity, resource, patient, encounters, bool(valid_patient and (settings.association == 'patient' or valid_encounters))
+def targets(db, association):
+    """Yield each existing patient or contact once, regardless of clinical resources."""
+    kind = 'Patient' if association == 'patient' else 'Encounter'
+    for identity, content in db.execute('SELECT key,content FROM resources WHERE kind=? ORDER BY key', (kind,)):
+        resource = json.loads(content, parse_float=Decimal)
+        if association == 'patient':
+            yield identity, None, None
+        else:
+            patient = resolve(db, resource.get('subject', {}).get('reference', ''))
+            if patient and patient.startswith('Patient/'):
+                yield patient, identity, resource.get('period', {}).get('start')
+            else:
+                yield None, identity, None
 
 
 def summary(db, settings):
-    total = count = 0
-    patients, encounters = set(), set()
-    for _, _, patient, cases, eligible in selection(db, settings):
-        total += 1
-        if eligible:
-            count += 1; patients.add(patient)
-            if settings.association == 'encounter':
-                encounters.update(cases)
-    return {'resources': count, 'patients': len(patients), 'cases': len(encounters), 'skipped': total - count}
+    count = skipped = 0
+    patients = set()
+    for patient, encounter, _ in targets(db, settings.association):
+        if patient:
+            count += 1
+            patients.add(patient)
+        else:
+            skipped += 1
+    return {'resources': count, 'patients': len(patients),
+            'cases': count if settings.association == 'encounter' else 0, 'skipped': skipped}
 
 
 def catalogue(job_id):
     with store.run_lock(job_id):
         path, fingerprint = source_index(job_id)
         with sqlite3.connect(path) as db:
-            options = []
-            for kind in TYPES:
-                if not db.execute('SELECT 1 FROM resources WHERE kind=? LIMIT 1', (kind,)).fetchone():
-                    continue
-                options.append({'resourceType': kind, 'codePath': TYPES[kind][2], 'statusEditable': kind != 'Condition',
-                    'patient': summary(db, Settings(resourceType=kind, association='patient')),
-                    'encounter': summary(db, Settings(resourceType=kind)) if TYPES[kind][1] else None})
-        return {'sourceRun': job_id, 'fingerprint': fingerprint, 'types': options}
+            patient = summary(db, Settings(resourceType='DocumentReference', association='patient'))
+            encounter = summary(db, Settings(resourceType='DocumentReference'))
+            options = [{'resourceType': kind,
+                        'codePath': 'medicationCodeableConcept' if kind.startswith('Medication') else TYPES[kind][2],
+                        'statuses': addition_generation.STATUSES[kind],
+                        'patient': patient, 'encounter': encounter if TYPES[kind][1] else None} for kind in TYPES]
+        return {'sourceRun': job_id, 'fingerprint': fingerprint, 'types': options if patient['resources'] else []}
 
 
 def create(job_id, settings, fingerprint, request_id):
-    validate(settings)
+    validate(settings, generated=True)
     descriptor = {'kind': 'resource-addition', 'sourceRun': job_id, 'settings': settings.model_dump(), 'fingerprint': fingerprint}
     with store.run_lock(job_id):
         def prepare(prepared):
@@ -256,12 +265,16 @@ def create(job_id, settings, fingerprint, request_id):
             folder = store.ROOT / 'jobs' / identifier
             folder.mkdir(parents=True)
             prepared.append(identifier)
+            created = time.time()
             with sqlite3.connect(path) as db, (folder / 'addition.ndjson').open('w') as output:
                 counts = summary(db, settings)
                 if not counts['resources']:
-                    raise ValueError('No matching resources with the requested references')
-                for _, resource, _, _, eligible in selection(db, settings):
-                    if eligible:
+                    raise ValueError('No existing patients or encounters with resolvable patient references')
+                for patient, encounter, timestamp in targets(db, settings.association):
+                    if patient:
+                        # Instant fields require a complete timestamp; partial contact dates use the saved creation time.
+                        date = timestamp if timestamp and 'T' in timestamp and (timestamp.endswith('Z') or '+' in timestamp[10:] or '-' in timestamp[10:]) else addition_generation.fallback_timestamp(created)
+                        resource = addition_generation.generate(settings, patient, encounter, date, UUID(identifier))
                         output.write(encode(resource) + '\n')
             import bulk_generation
             source = store.get(job_id)
@@ -269,7 +282,7 @@ def create(job_id, settings, fingerprint, request_id):
                 'profile': {'id': 'addition', 'name': settings.resourceType},
                 'converterSha256': store.digest(store.APP / 'synthifhir.jar'),
                 'inputSha256': store.digest(folder / 'addition.ndjson'),
-                'addition': {**descriptor, 'counts': counts, 'sourceName': source.get('dataset_name') or job_id[:8]},
+                'addition': {**descriptor, 'generationVersion': 1, 'counts': counts, 'sourceName': source.get('dataset_name') or job_id[:8]},
                 'formats': ['JSON', 'NDJSON'], 'validation': False,
                 'resultOutputName': bulk_generation.output_directory_name(identifier, 'Additions', time.time()),
                 'datasetName': (source.get('dataset_name') or job_id[:8]) + ' · ' + settings.resourceType}
@@ -319,7 +332,8 @@ def transform(resource, settings, new_ids):
 def execute(folder):
     snapshot = json.loads((folder / 'snapshot.json').read_text())
     settings = Settings(**snapshot['addition']['settings'])
-    validate(settings)
+    generated = snapshot['addition'].get('generationVersion') == 1
+    validate(settings, generated=generated)
     source = folder / 'addition.ndjson'
     if store.digest(source) != snapshot['inputSha256']:
         raise ValueError('Input snapshot changed')
@@ -329,13 +343,15 @@ def execute(folder):
         for line in stream:
             resource = json.loads(line, parse_float=Decimal)
             identity = key(resource)
-            new_ids[identity] = resource['resourceType'] + '/' + str(uuid5(namespace, identity))
+            new_ids[identity] = identity if generated else resource['resourceType'] + '/' + str(uuid5(namespace, identity))
     output = folder / 'output/run-additions/fhir'
     output.mkdir(parents=True, exist_ok=True)
     with source.open() as stream, (output / 'resources.ndjson').open('w') as ndjson, (output / 'resources.json').open('w') as bundle:
         bundle.write('{"resourceType":"Bundle","type":"collection","entry":[')
         for index, line in enumerate(stream):
-            resource = transform(json.loads(line, parse_float=Decimal), settings, new_ids)
+            resource = json.loads(line, parse_float=Decimal)
+            if not generated:
+                resource = transform(resource, settings, new_ids)
             ndjson.write(encode(resource) + '\n')
             if index:
                 bundle.write(',')

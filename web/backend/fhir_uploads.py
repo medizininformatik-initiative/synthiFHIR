@@ -1,5 +1,4 @@
 """Explicit, persistent dataset loading through the pinned blazectl executable."""
-import concurrent.futures
 from decimal import Decimal
 import json
 from pathlib import Path
@@ -8,37 +7,24 @@ import shutil
 import sqlite3
 import subprocess
 import time
-import urllib.request
 import uuid
 import zipfile
 
 import datasets
 import store
 
-TARGETS = {
-    'blaze': {'name': 'Blaze', 'url': 'http://blaze:8080/fhir', 'address': 'http://localhost:5190/fhir', 'concurrency': 1},
-    'hapi': {'name': 'HAPI', 'url': 'http://hapi:8080/fhir', 'address': 'http://localhost:5191/fhir', 'concurrency': 1},
-}
+import fhir_servers
+
+TARGETS = fhir_servers.LOCAL
 BLAZECTL_VERSION = '1.6.0'
 
 
 def target_status(identifier):
-    target = TARGETS[identifier]
-    result = {'id': identifier, **target, 'available': False}
-    try:
-        with urllib.request.urlopen(urllib.request.Request(target['url'] + '/metadata', headers={'Accept': 'application/fhir+json'}), timeout=2) as response:
-            metadata = json.load(response)
-        result['available'] = metadata.get('resourceType') == 'CapabilityStatement' and str(metadata.get('fhirVersion', '')).startswith('4.0') and any(
-            interaction.get('code') == 'transaction' for rest in metadata.get('rest', [])
-            if rest.get('mode') == 'server' for interaction in rest.get('interaction', []))
-    except (OSError, ValueError):
-        pass
-    return result
+    return fhir_servers.check(identifier)
 
 
 def targets():
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        return list(executor.map(target_status, TARGETS))
+    return fhir_servers.targets()
 
 
 def folder(identifier):
@@ -137,8 +123,9 @@ def delete_history(identifier=None):
 
 
 def create(identifier, target, selection):
-    if target not in TARGETS or not selection or len(set(selection)) != len(selection):
+    if not selection or len(set(selection)) != len(selection):
         raise ValueError('Invalid server or dataset selection')
+    server = fhir_servers.get(target)
     identifier = str(uuid.UUID(identifier))
     # A retry keeps the original immutable selection, even if the source is later unavailable.
     with store.connect() as db:
@@ -161,9 +148,9 @@ def create(identifier, target, selection):
                          'datasetName': job.get('dataset_name'), 'source': job.get('source'),
                          'sourceName': job.get('source_name'), 'inputKind': job.get('input_kind'),
                          'generation': job.get('generation'), 'summary': job.get('summary')})
-    descriptor = {'target': {'id': target, **TARGETS[target]}, 'datasets': selected,
+    descriptor = {'target': {key: server[key] for key in ('id', 'name', 'url', 'address', 'concurrency', 'revision', 'external') if key in server}, 'datasets': selected,
                   'blazectlVersion': BLAZECTL_VERSION, 'converterSha256': store.digest(store.APP / 'synthifhir.jar')}
-    if any(item.get('kind') == 'bulk' for item in selected):
+    if server.get('external') or any(item.get('kind') == 'bulk' for item in selected):
         descriptor['streaming'] = True
     with store.connect() as db:
         db.execute('BEGIN IMMEDIATE')

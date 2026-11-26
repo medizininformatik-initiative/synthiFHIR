@@ -1,10 +1,13 @@
+import { FhirServers } from './FhirServers'
+import { FhirResources } from './FhirResources'
+import { uploadError, serverMessage, type FhirTarget } from './fhir-servers'
 import { datasetLabel, type DatasetContext } from './dataset-label'
 import { useEffect, useState } from 'react'
 import { ListExpansion } from './ListExpansion'
 import { Button } from './components/ui/button'
 import { translate, type Language, type TextKey } from './i18n'
 
-type Target = { id: string; name: string; address: string; available: boolean }
+type Target = FhirTarget
 type Dataset = DatasetContext & { id: string; name: string; state: string; created: number; sourceName?: string; source?: string; size?: number; error?: string }
 type Upload = { resumable?: boolean; id: string; state: string; created: number; descriptor: { target: Target; datasets: (DatasetContext & { id: string; name: string })[] }; result?: { streaming?: boolean; checkedBundles?: number; packages?: number; completedPackages?: number; currentPackage?: number; error?: string; acceptedBundles?: number; rejectedBundles?: number; otherResponses?: number; statusCounts?: Record<string, number>; serverErrors?: { file: string; bundle: number; status?: string; code?: string; diagnostics: string[] }[]; resource?: string; resources?: number; bundles?: number; mayHaveWritten?: boolean } }
 const stateKeys: Record<string, TextKey> = { queued: 'app.upload.queued', preparing: 'app.upload.preparing', uploading: 'app.upload.uploading', succeeded: 'app.upload.succeeded', conflict: 'app.upload.conflict', failed: 'app.upload.failed', interrupted: 'app.upload.interrupted', cancelled: 'app.upload.cancelled' }
@@ -18,10 +21,12 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
   const [completedCount, setCompletedCount] = useState(0)
   const [search, setSearch] = useState('')
   const [selectedOnly, setSelectedOnly] = useState(false)
-  const [copyStatus, setCopyStatus] = useState('')
   const [datasetLimit, setDatasetLimit] = useState<number | null>(10)
-  const [selection, setSelection] = useState<string[]>([])
-  const [target, setTarget] = useState('')
+  const [selection, setSelection] = useState<string[]>(() => { try { const saved: unknown = JSON.parse(sessionStorage.getItem('fhir-upload-selection') ?? '[]'); return Array.isArray(saved) ? saved.filter((id): id is string => typeof id === 'string') : [] } catch { return [] } })
+  useEffect(() => { sessionStorage.setItem('fhir-upload-selection', JSON.stringify(selection)) }, [selection])
+  const [target, setTarget] = useState(() => sessionStorage.getItem('fhir-selected') ?? '')
+  const [loginNotice] = useState(() => { const query = new URLSearchParams(window.location.search); const notice = query.get('fhirLogin'); if (notice) { query.delete('fhirLogin'); window.history.replaceState(null, '', window.location.pathname + (query.size ? '?' + query : '')) } return notice })
+  useEffect(() => { sessionStorage.setItem('fhir-selected', target) }, [target])
   const [pending, setPending] = useState(false)
   const [error, setError] = useState(false)
   const [connectionFailed, setConnectionFailed] = useState(false)
@@ -41,7 +46,7 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
     async function poll() {
       try {
         const data = await refresh()
-        if (active) { setTargets(data.nextTargets); setDatasets(data.nextDatasets); setUploads(data.nextUploads.items); setHasMoreHistory(data.nextUploads.hasMore); setCompletedCount(data.nextUploads.completedCount); setConnectionFailed(false) }
+        if (active) { setTargets(data.nextTargets); setTarget(current => data.nextTargets.some((server: Target) => server.id === current) ? current : ''); setDatasets(data.nextDatasets); setUploads(data.nextUploads.items); setHasMoreHistory(data.nextUploads.hasMore); setCompletedCount(data.nextUploads.completedCount); setConnectionFailed(false) }
       } catch { if (active) setConnectionFailed(true) }
       if (active) timer = setTimeout(() => void poll(), 5000)
     }
@@ -89,28 +94,18 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
     } catch { setError(true) }
     finally { setPending(false) }
   }
-  async function copyCommand(server: string) {
-    try { await navigator.clipboard.writeText(`docker compose -f web/compose.yml --profile ${server} up -d ${server}`); setCopyStatus('app.upload.copied') }
-    catch { setCopyStatus('app.upload.copyFailed') }
-  }
   const eligible = datasets.filter(dataset => dataset.state === 'succeeded' && !dataset.error && dataset.size !== undefined).sort((a, b) => b.created - a.created)
   const filtered = eligible.filter(dataset => (!selectedOnly || selection.includes(dataset.id)) &&
     [datasetLabel(dataset, language), dataset.id].join(' ').toLocaleLowerCase(language).includes(search.toLocaleLowerCase(language)))
   return <section className="mt-8 space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
-    <h2 className="text-lg font-semibold">{t('app.upload.title')}</h2>
-    <p className="text-sm text-slate-600">{t('app.upload.hint')}</p>
+    <h2 className="text-lg font-semibold">{language === 'de' ? 'FHIR-Server und Daten' : 'FHIR servers and data'}</h2>
+    {loginNotice && <p role="status" className="text-sm">{loginNotice === 'success' ? (language === 'de' ? 'Anmeldung erfolgreich. Bitte die Verbindung prüfen.' : 'Signed in. Please check the connection.') : serverMessage(loginNotice, language)}</p>}
+    <p className="text-sm text-slate-600">{language === 'de' ? 'Server verbinden, erzeugte Daten hochladen und Ressourcen ansehen.' : 'Connect servers, upload generated data and view resources.'}</p>
     {(error || connectionFailed) && <p role="alert" className="text-sm text-red-700">{t('app.upload.error')}</p>}
-    <fieldset disabled={pending} className="space-y-2"><legend className="mb-2 font-medium">{t('app.upload.target')}</legend>
-      {targets.map(server => <div key={server.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"><label className="flex items-center gap-2"><input className="h-4 w-4 shrink-0 accent-teal-700" type="radio" name="fhir-target" value={server.id} checked={target === server.id} disabled={!server.available} onChange={() => setTarget(server.id)}/><span>{server.name}</span></label><span>·</span><a className="break-all text-teal-800 underline" href={server.address} target="_blank" rel="noreferrer">{server.address}</a><span>· {t(server.available ? 'app.upload.ready' : 'app.upload.offline')}</span></div>)}
-    </fieldset>
-    {targets.some(server => !server.available) && <div className="rounded-lg bg-slate-50 p-3 text-sm">
-      <p>{t('app.upload.startHint')}</p>
-      <details className="mt-2"><summary className="cursor-pointer font-medium">{t('app.upload.startServers')}</summary>
-        <p className="mt-2">{t('app.upload.commandsHint')}</p>
-        {targets.filter(server => !server.available).map(({ id: server }) => <div key={server} className="mt-3 space-y-2"><p className="font-medium">{t('app.upload.startServer', { server: server === 'blaze' ? 'Blaze' : 'HAPI' })}</p><div className="flex flex-wrap items-center gap-2"><code className="break-all">docker compose -f web/compose.yml --profile {server} up -d {server}</code><Button type="button" variant="outline" onClick={() => void copyCommand(server)}>{t('app.upload.copy')}</Button></div></div>)}
-        <p role="status" className="mt-2">{copyStatus && t(copyStatus as TextKey)}</p>
-      </details>
-    </div>}
+    <FhirServers language={language} targets={targets} target={target} onSelect={setTarget} onChange={async () => { const response = await fetch('/api/fhir-targets'); if (!response.ok) throw new Error('server_error'); setTargets(await response.json()) }}/>
+    <FhirResources target={targets.find(server => server.id === target)} language={language}/>
+    <h3 className="font-semibold">{t('app.upload.title')}</h3>
+    <p className="text-sm text-slate-600">{t('app.upload.hint')}</p>
     <fieldset disabled={pending} className="space-y-2"><legend className="mb-2 font-medium">{t('app.upload.datasets')}</legend>
       <input className="w-full rounded-lg border border-slate-300 p-2 text-sm" aria-label={t('app.upload.search')} placeholder={t('app.upload.search')} value={search} onChange={e => { setSearch(e.target.value); setDatasetLimit(10) }}/>
       <div className="flex flex-wrap items-center gap-4 text-sm"><span>{t('app.upload.selected', { count: selection.length })}</span><label className="flex items-center gap-2"><input className="h-4 w-4 shrink-0 accent-teal-700" type="checkbox" checked={selectedOnly} onChange={e => { setSelectedOnly(e.target.checked); setDatasetLimit(10) }}/>{t('app.upload.selectedOnly')}</label></div>
@@ -120,11 +115,13 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
       <div className="space-y-2">{filtered.slice(0, datasetLimit ?? filtered.length).map(dataset => <label key={dataset.id} className="flex items-start gap-2 text-sm"><input className="mt-0.5 h-4 w-4 shrink-0 accent-teal-700" type="checkbox" checked={selection.includes(dataset.id)} onChange={e => setSelection(previous => e.target.checked ? [...previous, dataset.id] : previous.filter(id => id !== dataset.id))}/><span>{datasetLabel(dataset, language)} · {new Date(dataset.created * 1000).toLocaleString(language === 'de' ? 'de-DE' : 'en-GB')} <span className="text-xs text-slate-500">({dataset.id.slice(0, 8)})</span></span></label>)}</div>
       <ListExpansion language={language} total={filtered.length} limit={datasetLimit} onChange={setDatasetLimit} countKey="app.list.datasetsCount"/>
     </fieldset>
+    {target && <p className="text-sm">{language === 'de' ? 'Upload-Ziel' : 'Upload target'}: <strong>{targets.find(server => server.id === target)?.name}</strong> · <span className="break-all">{targets.find(server => server.id === target)?.address}</span></p>}
+    {targets.some(server => server.id === target && !server.external && server.status?.code === 'unreachable') && <p role="status" className="text-sm font-medium text-amber-900">{language === 'de' ? 'Upload noch nicht möglich. Starte zuerst den ausgewählten Server mit dem Befehl oben.' : 'Upload is not available yet. Start the selected server using the command above.'}</p>}
     <Button disabled={pending || !selection.length || !targets.some(server => server.id === target && server.available)} onClick={() => void submit()}>{t(pending ? 'app.upload.submitting' : 'app.upload.start', { count: selection.length })}</Button>
     {uploads.length > 0 && <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-medium">{t('app.upload.history')}</h3>{completedCount > 0 && <Button variant="outline" disabled={pending} onClick={() => void removeHistory()}>{t('app.upload.clearHistory')}</Button>}</div>{uploads.map(upload => <article key={upload.id} className="rounded-lg border p-3 text-sm">
       <p className="font-medium">{upload.descriptor.target.name} · {t(stateKeys[upload.state] || 'app.upload.failed')} · {new Date(upload.created * 1000).toLocaleString(language === 'de' ? 'de-DE' : 'en-GB')}</p>
       <p>{upload.descriptor.datasets.map(dataset => `${datasetLabel(datasets.find(item => item.id === dataset.id) ?? dataset, language)} (${dataset.id.slice(0, 8)})`).join(', ')}</p>
-      {(upload.result?.error || upload.result?.serverErrors?.length) ? <p role="alert" className="mt-2 line-clamp-2 break-words text-red-700">{upload.result?.serverErrors?.[0]?.diagnostics[0] || upload.result?.serverErrors?.[0]?.code || upload.result?.error}</p> : null}
+      {(upload.result?.error || upload.result?.serverErrors?.length) ? <p role="alert" className="mt-2 line-clamp-2 break-words text-red-700">{uploadError(upload.result?.serverErrors?.[0]?.diagnostics[0] || upload.result?.serverErrors?.[0]?.code || upload.result?.error || '', language)}</p> : null}
       {upload.result?.streaming && <div className="mt-2" role="status">
         {upload.state === 'preparing' ? <p>{t('app.upload.bulkChecking', { count: upload.result.checkedBundles ?? 0 })}</p> : <><progress className="w-full accent-teal-700" max={upload.result.bundles || 1} value={upload.result.acceptedBundles ?? 0}/><p>{t('app.upload.bulkProgress', { count: upload.result.acceptedBundles ?? 0, total: upload.result.bundles ?? 0, packages: upload.result.completedPackages ?? 0, allPackages: upload.result.packages ?? 0 })}</p></>}
       </div>}
@@ -135,7 +132,7 @@ export function FhirUploads({ language, requestedSelection }: { language: Langua
       {upload.result?.resources !== undefined && <p>{t('app.upload.counts', { resources: upload.result.resources, bundles: upload.result.bundles || 0 })}</p>}
       {upload.result?.acceptedBundles !== undefined && <p className="mt-2">{t('app.upload.outcomes', { accepted: upload.result.acceptedBundles, rejected: upload.result.rejectedBundles ?? 0 })}</p>}
       {upload.result?.statusCounts && <p className="text-xs text-slate-500">{Object.entries(upload.result.statusCounts).map(([status, count]) => `HTTP ${status}: ${count}`).join(' · ')}</p>}
-      {upload.result?.error && !upload.result.serverErrors?.length && <p role="alert" className="mt-2 text-red-700">{upload.result.error}</p>}
+      {upload.result?.error && !upload.result.serverErrors?.length && <p role="alert" className="mt-2 text-red-700">{uploadError(upload.result.error, language)}</p>}
       {!!upload.result?.serverErrors?.length && <details className="mt-2"><summary className="cursor-pointer font-medium">{t('app.upload.reasons')}</summary><ul className="mt-2 space-y-2">{upload.result.serverErrors.map((failure, index) => <li key={index} className="break-words rounded border border-red-200 p-2 text-red-800"><p>{failure.file} · Bundle {failure.bundle} · HTTP {failure.status ?? '?'}</p>{(failure.diagnostics.length ? failure.diagnostics : [failure.code ?? '']).map((diagnostic, i) => <p key={i}>{diagnostic}</p>)}</li>)}</ul></details>}
       {['failed', 'cancelled', 'interrupted'].includes(upload.state) && upload.result?.mayHaveWritten && <p className="text-amber-800">{t('app.upload.partial')}</p>}
       <div className="mt-2 flex items-center gap-3"><a className="text-teal-800 underline" href={`/api/fhir-uploads/${upload.id}/logs`} target="_blank" rel="noreferrer">{t('app.upload.logs')}</a>{['queued', 'preparing', 'uploading'].includes(upload.state) && <Button variant="outline" onClick={() => void cancel(upload.id)}>{t('app.cancel')}</Button>}</div>

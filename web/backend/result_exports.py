@@ -60,6 +60,22 @@ def dataset_name(snapshot):
     return presentation(snapshot).get('datasetName', snapshot.get('datasetName', ''))
 
 
+def rename(job_id, name):
+    """Update the display name while preserving immutable run evidence and paths."""
+    import store
+    from bulk_generation import atomic_json
+    name = store.normalize_dataset_name(name)
+    if not name:
+        raise ValueError('A run name is required')
+    with store.run_lock(job_id):
+        folder = store.ROOT / 'jobs' / job_id
+        snapshot = json.loads((folder / 'snapshot.json').read_text())
+        metadata = metadata_path(snapshot)
+        metadata.parent.mkdir(parents=True, exist_ok=True)
+        atomic_json(metadata, {**presentation(snapshot), 'datasetName': name})
+        return store.get(job_id)
+
+
 def series_number(snapshot):
     """Keep the series position stable, including when earlier runs are deleted."""
     import store

@@ -5,12 +5,13 @@ import { defaults, type Configuration, type DocumentCoding } from './configurati
 import { InterfaceError, translate, type Language, type TextKey } from './i18n'
 
 type Counts = { resources: number; patients: number; cases: number; skipped: number }
-type ResourceChoice = { resourceType: string; codePath: string | null; statusEditable: boolean; patient: Counts; encounter: Counts | null }
+type ResourceChoice = { resourceType: string; codePath: string | null; statuses: string[]; patient: Counts; encounter: Counts | null }
 type Catalogue = { sourceRun: string; fingerprint: string; types: ResourceChoice[] }
-export type AdditionSettings = { resourceType: string; association: 'patient' | 'encounter'; status: string; codingMode: string; codings: DocumentCoding[]; nlpMode: string; nlpCodes: string[] }
+export type AdditionSettings = { resourceType: string; association: 'patient' | 'encounter'; status: string; codingMode: string; codings: DocumentCoding[]; nlpMode: string; nlpCodes: string[]; text: string; documentText: string; value: string; timestamp: string }
 const field = 'w-full rounded-lg border border-slate-300 bg-white p-2 text-sm'
 
-export function ResourceAdditions({ jobId, language, onCreate }: {
+export function ResourceAdditions({ jobId, language, onCreate, initialConfiguration }: {
+  initialConfiguration?: Configuration | null
   jobId: string; language: Language; onCreate: (settings: AdditionSettings, fingerprint: string) => Promise<void>
 }) {
   const t = (key: string, params?: Record<string, string | number>) => translate(language, key as TextKey, params)
@@ -18,7 +19,16 @@ export function ResourceAdditions({ jobId, language, onCreate }: {
   const [catalogue, setCatalogue] = useState<Catalogue | null>(null)
   const [kind, setKind] = useState('DocumentReference')
   const [association, setAssociation] = useState<'patient' | 'encounter'>('encounter')
-  const [config, setConfig] = useState<Configuration>(() => defaults())
+  const [config, setConfig] = useState<Configuration>(() => {
+    const source = initialConfiguration ?? defaults()
+    return { ...source, values: { ...source.values, 'resource.DocumentReference.enabled': true,
+      'document.type.mode': 'replace', 'document.nlp.mode': 'replace',
+      'document.nlp.values': source.values['document.nlp.mode'] === 'omit' ? [] : (source.values['document.nlp.values'] as string[]).length ? source.values['document.nlp.values'] : ['unprocessed'] } }
+  })
+  const [text, setText] = useState('')
+  const [documentText, setDocumentText] = useState('')
+  const [value, setValue] = useState('')
+  const [timestamp, setTimestamp] = useState('')
   const [status, setStatus] = useState('')
   const [codingMode, setCodingMode] = useState('input')
   const [codings, setCodings] = useState<DocumentCoding[]>([])
@@ -45,7 +55,7 @@ export function ResourceAdditions({ jobId, language, onCreate }: {
     if (!catalogue) return
     setBusy(true); setError('')
     try {
-      await onCreate({ resourceType: kind, association, status,
+      await onCreate({ resourceType: kind, association, status, text, documentText, value, timestamp,
         codingMode: document ? String(values['document.type.mode']) : codingMode,
         codings: document ? values['document.type.values'] as DocumentCoding[] : codings,
         nlpMode: document ? String(values['document.nlp.mode']) : 'input',
@@ -54,11 +64,11 @@ export function ResourceAdditions({ jobId, language, onCreate }: {
     } catch (error) { setError(error instanceof InterfaceError ? t(error.messageKey, error.params) : error instanceof Error ? error.message : t('app.additions.failed')) }
     finally { setBusy(false) }
   }
-  return <section className="my-5 border-t border-slate-200 pt-4">
+  return <div className="contents">
     <Button variant="outline" tooltip={t('app.additions.actionHelp')} onClick={() => open ? setOpen(false) : void load()} aria-expanded={open}>
       {t('app.additions.action')}
     </Button>
-    {open && <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+    {open && <div className="w-full basis-full rounded-xl border border-slate-200 bg-slate-50 p-4">
       <h3 className="font-semibold">{t('app.additions.action')}</h3>
       <p className="mt-2 text-sm text-slate-600">{t('app.additions.intro')}</p>
       {busy && <p role="status" className="mt-3 text-sm">{t('app.additions.working')}</p>}
@@ -68,7 +78,7 @@ export function ResourceAdditions({ jobId, language, onCreate }: {
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm">{t('app.additions.type')}<select className={field} value={kind} onChange={event => {
             const next = catalogue!.types.find(item => item.resourceType === event.target.value)!
-            setKind(next.resourceType); setStatus(''); setCodingMode('input'); setCodings([])
+            setKind(next.resourceType); setStatus(''); setCodingMode('input'); setCodings([]); setText(''); setValue(''); setDocumentText('')
             if (!next.encounter) setAssociation('patient')
           }}>{catalogue!.types.map(item => <option key={item.resourceType}>{item.resourceType}</option>)}</select></label>
           <label className="text-sm">{t('app.additions.association')}<select className={field} value={association} onChange={event => setAssociation(event.target.value as 'patient' | 'encounter')}>
@@ -77,8 +87,12 @@ export function ResourceAdditions({ jobId, language, onCreate }: {
           </select></label>
         </div>
         <p className="text-sm">{t(association === 'encounter' ? 'app.additions.encounterHelp' : 'app.additions.patientHelp')}</p>
-        {choice.statusEditable && <label className="block text-sm">{t('app.additions.status')}<input className={field} value={status} onChange={event => setStatus(event.target.value)} placeholder={t('app.additions.keep')}/></label>}
-        {document ? <DocumentSettings config={config} update={(id, value) => { setConfig(old => ({ ...old, values: { ...old.values, [id]: value } })); setPreview(false) }} t={t}/> : choice.codePath && <section className="space-y-3">
+        <label className="block text-sm">{t('app.additions.status')}<select className={field} value={status} onChange={event => setStatus(event.target.value)}><option value="">{choice.statuses[0]}</option>{choice.statuses.slice(1).map(item => <option key={item}>{item}</option>)}</select></label>
+        <label className="block text-sm">{t('app.additions.text')}<input className={field} maxLength={2000} value={text} onChange={event => setText(event.target.value)} placeholder={t('app.additions.generatedDefault')}/></label>
+        <label className="block text-sm">{t('app.additions.timestamp')}<input className={field} maxLength={40} value={timestamp} onChange={event => setTimestamp(event.target.value)} placeholder="2026-01-01T12:00:00+01:00"/><span className="mt-1 block text-xs text-slate-600">{t('app.additions.timestampHelp')}</span></label>
+        {document && <label className="block text-sm">{t('app.additions.documentText')}<textarea className={field} rows={4} maxLength={100000} value={documentText} onChange={event => setDocumentText(event.target.value)} placeholder={t('app.additions.documentTextHelp')}/></label>}
+        {['Observation', 'DiagnosticReport', 'CarePlan'].includes(kind) && <label className="block text-sm">{t('app.additions.value')}<input className={field} maxLength={2000} value={value} onChange={event => setValue(event.target.value)} placeholder={t('app.additions.generatedDefault')}/></label>}
+        {document ? <DocumentSettings generation config={config} update={(id, value) => { setConfig(old => ({ ...old, values: { ...old.values, [id]: value } })); setPreview(false) }} t={t}/> : choice.codePath && <section className="space-y-3">
           <label className="block text-sm">{choice.resourceType}.{choice.codePath}<select className={field} value={codingMode} onChange={event => setCodingMode(event.target.value)}>
             <option value="input">{t('app.additions.keep')}</option><option value="replace">{t('document.mode.replace')}</option>
           </select></label>
@@ -90,15 +104,15 @@ export function ResourceAdditions({ jobId, language, onCreate }: {
             <Button type="button" variant="outline" tooltip={t('document.add')} aria-label={t('document.add')} onClick={() => { setCodings(old => [...old, {system:'',code:'',display:''}]); setPreview(false) }}>+</Button>
           </>}
         </section>}
-        <Button type="button" variant="outline" disabled={!counts?.resources} onClick={() => setPreview(true)}>{t('app.additions.preview')}</Button>
+        <Button type="button" variant="outline" tooltip={t('app.additions.references')} disabled={!counts?.resources} onClick={() => setPreview(true)}>{t('app.additions.preview')}</Button>
         {counts?.skipped ? <p className="text-sm text-amber-800">{t('app.additions.skipped', { count: counts.skipped })}</p> : null}
         {preview && counts && <div className="rounded-lg border border-teal-200 bg-teal-50 p-4">
           <p className="font-medium">{t('app.additions.summary', { count: counts.resources, type: kind, patients: counts.patients, cases: counts.cases })}</p>
           <p className="mt-2 text-sm">{t('app.additions.references')}</p>
-          <p className="mt-2 text-sm">{t('app.additions.copyHelp')}</p>
-          <Button className="mt-3" onClick={() => void start()}>{t('app.additions.start')}</Button>
+          <p className="mt-2 text-sm">{t('app.additions.generationHelp')}</p>
+          <Button className="mt-3" tooltip={t('app.additions.generationHelp')} onClick={() => void start()}>{t('app.additions.start')}</Button>
         </div>}
       </fieldset>}
     </div>}
-  </section>
+  </div>
 }
